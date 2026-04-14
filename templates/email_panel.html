@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="app-layout">
+  {% with active_page='email' %}
+  {% include "partials/sidebar.html" %}
+  {% endwith %}
+
+  <main class="main-content">
+    <h2 style="color:var(--text-primary);margin-bottom:4px;">Email Reports</h2>
+    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px;">Send progress reports, update requests, and weekly digests via Gmail API.</p>
+
+    <div class="email-tabs">
+      <button class="email-tab active" onclick="switchEmailTab(this, 'testPanel')">Test Email</button>
+      <button class="email-tab" onclick="switchEmailTab(this, 'reportPanel')">Send Reports</button>
+      <button class="email-tab" onclick="switchEmailTab(this, 'nudgePanel')">Update Requests</button>
+      <button class="email-tab" onclick="switchEmailTab(this, 'digestPanel')">Weekly Digest</button>
+    </div>
+
+    <!-- Test Email -->
+    <div class="email-panel-content" id="testPanel">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:8px;">Test Email Setup</h3>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;">Send a test email to verify your Gmail API configuration is working correctly.</p>
+      <div class="form-group" style="max-width:400px;">
+        <label class="form-label">Recipient Email</label>
+        <input type="email" class="form-input" id="testEmailTo" value="{{ auth.user_email() }}">
+      </div>
+      <button class="btn btn-primary" onclick="sendTestEmail()" id="testEmailBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Send Test Email
+      </button>
+      <div id="testEmailResult" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Send Reports -->
+    <div class="email-panel-content" id="reportPanel" style="display:none;">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:8px;">Progress Reports</h3>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;">Send personalized OKR progress reports to all team members for {{ quarter }}.</p>
+      <button class="btn btn-primary" onclick="sendAllReports()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Send All Reports
+      </button>
+      <div id="reportResults" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Update Requests -->
+    <div class="email-panel-content" id="nudgePanel" style="display:none;">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:8px;">Update Requests</h3>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;">Send nudge emails to team members with stale Key Results (not updated in 7+ days).</p>
+      <div class="form-group" style="max-width:400px;">
+        <label class="form-label">Recipient Email</label>
+        <input type="email" class="form-input" id="nudgeEmailTo" placeholder="user@company.com">
+      </div>
+      <button class="btn btn-primary" onclick="sendNudge()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Send Update Request
+      </button>
+      <div id="nudgeResult" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Weekly Digest -->
+    <div class="email-panel-content" id="digestPanel" style="display:none;">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:8px;">Weekly Digest</h3>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;">Send a weekly summary digest to all team members for {{ quarter }}.</p>
+      <button class="btn btn-primary" onclick="sendDigest()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Send Weekly Digest
+      </button>
+      <div id="digestResults" style="margin-top:12px;"></div>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const EMAIL_QUARTER = "{{ quarter }}";
+
+function switchEmailTab(btn, panelId) {
+  document.querySelectorAll('.email-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.email-panel-content').forEach(p => p.style.display = 'none');
+  btn.classList.add('active');
+  document.getElementById(panelId).style.display = 'block';
+}
+
+function sendTestEmail() {
+  const to = document.getElementById('testEmailTo').value;
+  if (!to) { showToast('Enter a recipient email', 'error'); return; }
+  const btn = document.getElementById('testEmailBtn');
+  btn.disabled = true; btn.textContent = 'Sending...';
+  apiPost('/api/email/test', { recipient: to }).then(r => {
+    btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Send Test Email';
+    document.getElementById('testEmailResult').innerHTML = '<div class="flash-msg ' + (r.ok ? 'success' : 'error') + '">' + (r.message || 'Done') + '</div>';
+  });
+}
+
+function sendAllReports() {
+  apiPost('/api/email/send-report', { quarter: EMAIL_QUARTER }).then(r => {
+    if (r.results) {
+      let html = r.results.map(x => '<div class="flash-msg ' + (x.ok ? 'success' : 'error') + '">' + x.email + ': ' + x.msg + '</div>').join('');
+      document.getElementById('reportResults').innerHTML = html;
+    }
+  });
+}
+
+function sendNudge() {
+  const to = document.getElementById('nudgeEmailTo').value;
+  if (!to) { showToast('Enter a recipient email', 'error'); return; }
+  apiPost('/api/email/send-nudge', { quarter: EMAIL_QUARTER, user: { email: to } }).then(r => {
+    document.getElementById('nudgeResult').innerHTML = '<div class="flash-msg ' + (r.ok ? 'success' : 'error') + '">' + (r.message || 'Done') + '</div>';
+  });
+}
+
+function sendDigest() {
+  apiPost('/api/email/send-digest', { quarter: EMAIL_QUARTER }).then(r => {
+    if (r.results) {
+      let html = r.results.map(x => '<div class="flash-msg ' + (x.ok ? 'success' : 'error') + '">' + x.email + ': ' + x.msg + '</div>').join('');
+      document.getElementById('digestResults').innerHTML = html;
+    }
+  });
+}
+</script>
+{% endblock %}

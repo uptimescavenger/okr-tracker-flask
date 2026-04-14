@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="app-layout">
+  {% with active_page='account' %}
+  {% include "partials/sidebar.html" %}
+  {% endwith %}
+
+  <main class="main-content">
+    <h2 style="color:var(--text-primary);margin-bottom:4px;">Account Settings</h2>
+    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:24px;">Manage your profile and security settings.</p>
+
+    {% set user = auth.get_current_user() %}
+
+    <!-- Profile Info -->
+    <div class="card account-card" style="margin-bottom:24px;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border-default);">
+        <h3 style="font-size:0.95rem;font-weight:700;color:var(--text-primary);">Profile Information</h3>
+      </div>
+      <div class="account-info">
+        <div class="account-info-label">Name</div>
+        <div class="account-info-value">{{ user.first_name }} {{ user.last_name }}</div>
+      </div>
+      <div class="account-info">
+        <div class="account-info-label">Email</div>
+        <div class="account-info-value">{{ user.email }}</div>
+      </div>
+      <div class="account-info">
+        <div class="account-info-label">Role</div>
+        <div class="account-info-value">
+          <span class="role-badge role-{{ user.role|replace(' ', '') }}">{{ user.role }}</span>
+        </div>
+      </div>
+      <div class="account-info" style="border-bottom:none;">
+        <div class="account-info-label">Categories</div>
+        <div class="account-info-value">{{ user.categories }}</div>
+      </div>
+    </div>
+
+    <!-- Change Password -->
+    <div class="card account-card">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border-default);">
+        <h3 style="font-size:0.95rem;font-weight:700;color:var(--text-primary);">Change Password</h3>
+      </div>
+      <div style="padding:20px;">
+        <div class="form-group">
+          <label class="form-label">Current Password</label>
+          <input type="password" class="form-input" id="currentPw" style="max-width:350px;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <input type="password" class="form-input" id="newPw" style="max-width:350px;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm New Password</label>
+          <input type="password" class="form-input" id="confirmPw" style="max-width:350px;">
+        </div>
+        <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
+        <div id="pwResult" style="margin-top:12px;"></div>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function changePassword() {
+  const current = document.getElementById('currentPw').value;
+  const newPw = document.getElementById('newPw').value;
+  const confirm = document.getElementById('confirmPw').value;
+
+  if (!current || !newPw) { showToast('Please fill in all fields', 'error'); return; }
+  if (newPw !== confirm) { showToast('New passwords do not match', 'error'); return; }
+  if (newPw.length < 4) { showToast('Password must be at least 4 characters', 'error'); return; }
+
+  apiPost('/api/account/change-password', {
+    current_password: current,
+    new_password: newPw,
+  }).then(r => {
+    const el = document.getElementById('pwResult');
+    if (r.ok) {
+      el.innerHTML = '<div class="flash-msg success">Password changed successfully!</div>';
+      document.getElementById('currentPw').value = '';
+      document.getElementById('newPw').value = '';
+      document.getElementById('confirmPw').value = '';
+    } else {
+      el.innerHTML = '<div class="flash-msg error">' + (r.error || 'Failed to change password') + '</div>';
+    }
+  });
+}
+</script>
+{% endblock %}

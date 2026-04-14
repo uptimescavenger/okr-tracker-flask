@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="app-layout">
+  {% with active_page='tracker' %}
+  {% include "partials/sidebar.html" %}
+  {% endwith %}
+
+  <main class="main-content">
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <div class="filter-bar-inner">
+        <div>
+          <div class="filter-label">Quarter</div>
+          <select class="quarter-select" id="quarterSelect" onchange="changeQuarter(this.value)">
+            {% for q in quarter_list %}
+            <option value="{{ q }}" {{ 'selected' if q == quarter }}>{{ q }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="flex:1;">
+          <div class="filter-label">Dashboard</div>
+          <div class="category-pills">
+            {% for cat in allowed_categories %}
+            <button class="pill-btn {{ 'active' if cat == category }}"
+                    onclick="changeCategory('{{ cat }}')">
+              {% if cat != 'All' %}<span class="cat-dot cat-dot-{{ cat }}"></span>{% endif %}
+              {{ cat }}
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+        <button class="btn btn-secondary" onclick="refreshData()" title="Refresh data">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Page header -->
+    <h2 style="margin-bottom:2px;color:var(--text-primary);">{{ quarter }}</h2>
+    <p style="color:var(--text-muted);margin-bottom:20px;">Click an objective tab to view key results and progress.</p>
+
+    <!-- Metrics -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Objectives</div>
+        <div class="metric-value">{{ stats.total }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Avg Progress</div>
+        <div class="metric-value">{{ stats.avg_progress }}%</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Completed</div>
+        <div class="metric-value" style="color:var(--success)">{{ stats.completed }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">At Risk</div>
+        <div class="metric-value" style="color:{{ 'var(--danger)' if stats.at_risk > 0 else 'var(--text-primary)' }}">{{ stats.at_risk }}</div>
+      </div>
+    </div>
+
+    {% if okrs|length == 0 %}
+    <div class="empty-state">
+      <h3>No objectives yet</h3>
+      <p>Create your first objective to start tracking progress.</p>
+      {% if auth.can_create_okr() %}
+      <button class="btn btn-primary" onclick="openAddOkrModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Objective
+      </button>
+      {% endif %}
+    </div>
+    {% else %}
+
+    <!-- OKR Tabs -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
+      <div class="okr-tabs" id="okrTabs">
+        {% for okr in okrs %}
+        <button class="okr-tab {{ 'active' if loop.first }}" data-okr-idx="{{ loop.index0 }}" onclick="switchOkrTab({{ loop.index0 }})">
+          <span class="progress-dot" style="background:{{ okr.color }}"></span>
+          {{ okr.title|truncate(30) }}
+        </button>
+        {% endfor %}
+      </div>
+      {% if auth.can_create_okr() %}
+      <button class="btn btn-primary btn-sm" onclick="openAddOkrModal()" style="white-space:nowrap;margin-left:12px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Objective
+      </button>
+      {% endif %}
+    </div>
+
+    <!-- OKR Cards -->
+    {% for okr in okrs %}
+    <div class="okr-card" id="okrCard{{ loop.index0 }}" style="{{ '' if loop.first else 'display:none;' }}">
+      <div class="okr-header">
+        <div>
+          <div class="okr-title">{{ okr.title }}</div>
+          {% if okr.description %}
+          <p style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">{{ okr.description }}</p>
+          {% endif %}
+        </div>
+        <div class="okr-pct" style="color:{{ okr.color }}">{{ okr.progress }}%</div>
+      </div>
+
+      <div class="okr-progress-bar">
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:{{ [okr.progress, 100]|min }}%;background:{{ okr.color }}"></div>
+        </div>
+      </div>
+
+      <div class="okr-pills">
+        {% if okr.owner %}
+        <span class="info-pill pill-owner">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          {{ okr.owner }}
+        </span>
+        {% endif %}
+        {% if okr.category %}
+        <span class="info-pill pill-category">
+          <span class="cat-dot cat-dot-{{ okr.category }}"></span>
+          {{ okr.category }}
+        </span>
+        {% endif %}
+        {% if okr.target_date %}
+        <span class="info-pill pill-date">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          {{ okr.target_date }}
+        </span>
+        {% endif %}
+        {% if okr.last_updated %}
+        <span class="info-pill pill-updated">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          {{ okr.last_updated }}
+        </span>
+        {% endif %}
+      </div>
+
+      {% if auth.can_edit_okr() or auth.can_delete_okr(okr.category) %}
+      <div class="okr-actions">
+        {% if auth.can_edit_okr() %}
+        <button class="btn btn-secondary btn-sm" onclick='openEditOkrModal({{ okr|tojson }})'>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          Edit
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick='openMoveOkrModal("{{ okr.id }}", "{{ quarter }}")'>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+          Move
+        </button>
+        {% endif %}
+        {% if auth.can_delete_okr(okr.category) %}
+        <button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:#fecaca;" onclick="deleteOkr('{{ okr.id }}', '{{ quarter }}', '{{ okr.category }}')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Delete
+        </button>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Key Results -->
+      <div class="kr-section">
+        <div class="kr-section-header">
+          <span class="kr-section-title">Key Results ({{ okr.krs|length }})</span>
+          {% if auth.can_create_kr() %}
+          <button class="btn btn-primary btn-sm" onclick="openAddKrModal('{{ okr.id }}')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Key Result
+          </button>
+          {% endif %}
+        </div>
+
+        {% if okr.krs|length == 0 %}
+        <div class="empty-state" style="padding:24px;">
+          <p>No key results yet. Add one to start tracking.</p>
+        </div>
+        {% endif %}
+
+        {% for kr in okr.krs %}
+        <div class="kr-card">
+          <div class="kr-header">
+            <div class="kr-name">{{ kr.name }}</div>
+            <div class="kr-pct" style="color:{{ kr.color }}">{{ kr.achievement }}%</div>
+          </div>
+
+          <div class="kr-subtitle">
+            {{ kr.current_display }} / {{ kr.target_display }}
+            {% if kr.owner %} &bull; {{ kr.owner }}{% endif %}
+            {% if kr.last_updated %} &bull; Updated: {{ kr.last_updated }}{% endif %}
+          </div>
+
+          <div class="progress-bar sm">
+            <div class="progress-fill" style="width:{{ [kr.achievement, 100]|min }}%;background:{{ kr.color }}"></div>
+          </div>
+
+          <div class="kr-metrics">
+            <div class="kr-metric">
+              <div class="kr-metric-label">Current</div>
+              <div class="kr-metric-value">{{ kr.current_display }}</div>
+            </div>
+            <div class="kr-metric">
+              <div class="kr-metric-label">Target</div>
+              <div class="kr-metric-value">{{ kr.target_display }}</div>
+            </div>
+          </div>
+
+          <!-- Trend chart -->
+          {% if kr.trend|length > 1 %}
+          <div class="chart-container" id="chart_{{ kr.id }}"></div>
+          {% endif %}
+
+          <div class="kr-actions">
+            {% if auth.can_update_kr() %}
+            <button class="btn btn-primary btn-sm" onclick='openUpdateKrModal({{ kr|tojson }})'>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Update
+            </button>
+            {% endif %}
+            {% if auth.can_edit_kr() %}
+            <button class="btn btn-secondary btn-sm" onclick='openEditKrModal({{ kr|tojson }})'>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+              Edit
+            </button>
+            {% endif %}
+            {% if auth.can_delete_kr(okr.category) %}
+            <button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:#fecaca;"
+                    onclick="deleteKr('{{ kr.id }}', '{{ kr.okr_id }}', '{{ quarter }}', '{{ okr.category }}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Delete
+            </button>
+            {% endif %}
+          </div>
+
+          <!-- Notes -->
+          <div class="notes-section">
+            <button class="notes-toggle" onclick="toggleNotes(this)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              Notes ({{ kr.notes|length }})
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-arrow"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="notes-list" style="display:none;">
+              {% for note in kr.notes %}
+              <div class="note-card">
+                <div class="note-meta">
+                  <span class="note-author">{{ note.author }}</span>
+                  <span class="note-timestamp">{{ note.timestamp }}</span>
+                </div>
+                <div class="note-text">{{ note.text }}</div>
+              </div>
+              {% endfor %}
+              {% if auth.can_add_note() %}
+              <div class="note-form">
+                <textarea class="note-input" placeholder="Add a note..." rows="1" id="noteInput_KR_{{ kr.id }}"></textarea>
+                <button class="btn btn-primary btn-sm" onclick="addNote('KR', '{{ kr.id }}', 'noteInput_KR_{{ kr.id }}')">Add</button>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+        <!-- OKR-level notes -->
+        <div class="notes-section" style="border-top:1px solid var(--border-default);padding-top:12px;margin-top:8px;">
+          <button class="notes-toggle" onclick="toggleNotes(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Objective Notes ({{ okr.notes|length }})
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-arrow"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="notes-list" style="display:none;">
+            {% for note in okr.notes %}
+            <div class="note-card">
+              <div class="note-meta">
+                <span class="note-author">{{ note.author }}</span>
+                <span class="note-timestamp">{{ note.timestamp }}</span>
+              </div>
+              <div class="note-text">{{ note.text }}</div>
+            </div>
+            {% endfor %}
+            {% if auth.can_add_note() %}
+            <div class="note-form">
+              <textarea class="note-input" placeholder="Add a note..." rows="1" id="noteInput_OKR_{{ okr.id }}"></textarea>
+              <button class="btn btn-primary btn-sm" onclick="addNote('OKR', '{{ okr.id }}', 'noteInput_OKR_{{ okr.id }}')">Add</button>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </main>
+</div>
+
+<!-- Add OKR Modal -->
+<div class="modal-overlay" id="addOkrModal">
+  <div class="modal">
+    <div class="modal-title">Add Objective</div>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input type="text" class="form-input" id="okrTitle">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-textarea" id="okrDesc" rows="2"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Owner</label>
+      <input type="text" class="form-input" id="okrOwner">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Target Date</label>
+      <input type="date" class="form-input" id="okrDate">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <select class="form-select" id="okrCategory">
+        {% for cat in categories %}
+        <option value="{{ cat }}">{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('addOkrModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddOkr()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit OKR Modal -->
+<div class="modal-overlay" id="editOkrModal">
+  <div class="modal">
+    <div class="modal-title">Edit Objective</div>
+    <input type="hidden" id="editOkrId">
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input type="text" class="form-input" id="editOkrTitle">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-textarea" id="editOkrDesc" rows="2"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Owner</label>
+      <input type="text" class="form-input" id="editOkrOwner">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Target Date</label>
+      <input type="date" class="form-input" id="editOkrDate">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <select class="form-select" id="editOkrCategory">
+        {% for cat in categories %}
+        <option value="{{ cat }}">{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('editOkrModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEditOkr()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Move OKR Modal -->
+<div class="modal-overlay" id="moveOkrModal">
+  <div class="modal">
+    <div class="modal-title">Move Objective to Another Quarter</div>
+    <input type="hidden" id="moveOkrId">
+    <input type="hidden" id="moveOkrOldQuarter">
+    <div class="form-group">
+      <label class="form-label">Move to Quarter</label>
+      <select class="form-select" id="moveOkrQuarter">
+        {% for q in quarter_list %}
+        <option value="{{ q }}">{{ q }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('moveOkrModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitMoveOkr()">Move</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add KR Modal -->
+<div class="modal-overlay" id="addKrModal">
+  <div class="modal">
+    <div class="modal-title">Add Key Result</div>
+    <input type="hidden" id="krOkrId">
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input type="text" class="form-input" id="krName">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Owner</label>
+      <input type="text" class="form-input" id="krOwner">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Target Value</label>
+      <input type="number" class="form-input" id="krTarget" step="any">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Baseline Value</label>
+      <input type="number" class="form-input" id="krBaseline" value="0" step="any">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Direction</label>
+      <select class="form-select" id="krDirection">
+        <option value="increase">Increase</option>
+        <option value="decrease">Decrease</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Unit</label>
+      <input type="text" class="form-input" id="krUnit" placeholder="e.g. %, $, users">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('addKrModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddKr()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit KR Modal -->
+<div class="modal-overlay" id="editKrModal">
+  <div class="modal">
+    <div class="modal-title">Edit Key Result</div>
+    <input type="hidden" id="editKrId">
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input type="text" class="form-input" id="editKrName">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Owner</label>
+      <input type="text" class="form-input" id="editKrOwner">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Target Value</label>
+      <input type="number" class="form-input" id="editKrTarget" step="any">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Baseline Value</label>
+      <input type="number" class="form-input" id="editKrBaseline" step="any">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Direction</label>
+      <select class="form-select" id="editKrDirection">
+        <option value="increase">Increase</option>
+        <option value="decrease">Decrease</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Unit</label>
+      <input type="text" class="form-input" id="editKrUnit">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('editKrModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEditKr()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Update KR Value Modal -->
+<div class="modal-overlay" id="updateKrModal">
+  <div class="modal">
+    <div class="modal-title">Update Key Result Value</div>
+    <input type="hidden" id="updateKrId">
+    <input type="hidden" id="updateKrOkrId">
+    <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:16px;" id="updateKrInfo"></p>
+    <div class="form-group">
+      <label class="form-label">New Value</label>
+      <input type="number" class="form-input" id="updateKrValue" step="any">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('updateKrModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitUpdateKr()">Update</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+<script>
+  // Render trend charts
+  const CHART_DATA = {{ okrs|tojson }};
+  document.addEventListener('DOMContentLoaded', function() {
+    CHART_DATA.forEach(function(okr) {
+      okr.krs.forEach(function(kr) {
+        if (kr.trend && kr.trend.length > 1) {
+          const el = document.getElementById('chart_' + kr.id);
+          if (el) {
+            Plotly.newPlot(el, [{
+              x: kr.trend.map(p => p.date),
+              y: kr.trend.map(p => p.value),
+              type: 'scatter',
+              mode: 'lines+markers',
+              line: { color: '#8b5cf6', width: 2, shape: 'spline' },
+              marker: { size: 6, color: '#8b5cf6' },
+              fill: 'tozeroy',
+              fillcolor: 'rgba(139, 92, 246, 0.10)',
+            }], {
+              margin: { l: 40, r: 16, t: 8, b: 30 },
+              height: 160,
+              xaxis: { tickfont: { size: 9, color: '#94a3b8' }, gridcolor: 'rgba(226,232,240,0.6)' },
+              yaxis: { tickfont: { size: 9, color: '#94a3b8' }, gridcolor: 'rgba(226,232,240,0.6)' },
+              paper_bgcolor: 'transparent',
+              plot_bgcolor: 'transparent',
+              showlegend: false,
+            }, { responsive: true, displayModeBar: false });
+          }
+        }
+      });
+    });
+  });
+
+  // Current quarter for API calls
+  const CURRENT_QUARTER = "{{ quarter }}";
+</script>
+{% endblock %}

@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="app-layout">
+  {% with active_page='admin' %}
+  {% include "partials/sidebar.html" %}
+  {% endwith %}
+
+  <main class="main-content">
+    <div class="admin-header">
+      <div>
+        <h2 style="color:var(--text-primary);margin-bottom:4px;">User Management</h2>
+        <p style="color:var(--text-muted);font-size:0.85rem;">Manage team members, roles, and category access.</p>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('addUserModal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add User
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="user-row" style="background:var(--primary-bg);font-weight:700;font-size:0.75rem;color:var(--primary);text-transform:uppercase;letter-spacing:0.05em;">
+        <div>User</div>
+        <div>Categories</div>
+        <div>Role</div>
+        <div>Actions</div>
+      </div>
+      {% for user in users %}
+      <div class="user-row">
+        <div>
+          <div class="user-name">{{ user.first_name }} {{ user.last_name }}</div>
+          <div class="user-email">{{ user.email }}</div>
+        </div>
+        <div style="font-size:0.8rem;color:var(--text-secondary);">{{ user.categories }}</div>
+        <div>
+          <span class="role-badge role-{{ user.role|replace(' ', '') }}">{{ user.role }}</span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-secondary btn-sm" onclick='openEditUserModal({{ user|tojson }})'>Edit</button>
+          <button class="btn btn-secondary btn-sm" onclick='openResetPwModal("{{ user.email }}")'>Reset PW</button>
+          <button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:#fecaca;" onclick='deleteUser("{{ user.email }}")'>Delete</button>
+        </div>
+      </div>
+      {% endfor %}
+      {% if users|length == 0 %}
+      <div style="padding:40px;text-align:center;color:var(--text-muted);">No users found.</div>
+      {% endif %}
+    </div>
+  </main>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal-overlay" id="addUserModal">
+  <div class="modal">
+    <div class="modal-title">Add User</div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-input" id="newUserEmail">
+    </div>
+    <div class="form-group">
+      <label class="form-label">First Name</label>
+      <input type="text" class="form-input" id="newUserFirst">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Last Name</label>
+      <input type="text" class="form-input" id="newUserLast">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-input" id="newUserPw">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <select class="form-select" id="newUserRole">
+        {% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Categories (comma-separated, or "All")</label>
+      <input type="text" class="form-input" id="newUserCats" placeholder="All">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('addUserModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddUser()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal-overlay" id="editUserModal">
+  <div class="modal">
+    <div class="modal-title">Edit User</div>
+    <input type="hidden" id="editUserEmail">
+    <div class="form-group">
+      <label class="form-label">First Name</label>
+      <input type="text" class="form-input" id="editUserFirst">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Last Name</label>
+      <input type="text" class="form-input" id="editUserLast">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <select class="form-select" id="editUserRole">
+        {% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Categories</label>
+      <input type="text" class="form-input" id="editUserCats">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('editUserModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEditUser()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal-overlay" id="resetPwModal">
+  <div class="modal">
+    <div class="modal-title">Reset Password</div>
+    <input type="hidden" id="resetPwEmail">
+    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;" id="resetPwInfo"></p>
+    <div class="form-group">
+      <label class="form-label">New Password</label>
+      <input type="password" class="form-input" id="resetPwValue">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('resetPwModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitResetPw()">Reset</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEditUserModal(user) {
+  document.getElementById('editUserEmail').value = user.email;
+  document.getElementById('editUserFirst').value = user.first_name;
+  document.getElementById('editUserLast').value = user.last_name;
+  document.getElementById('editUserRole').value = user.role;
+  document.getElementById('editUserCats').value = user.categories;
+  openModal('editUserModal');
+}
+
+function openResetPwModal(email) {
+  document.getElementById('resetPwEmail').value = email;
+  document.getElementById('resetPwInfo').textContent = 'Reset password for ' + email;
+  document.getElementById('resetPwValue').value = '';
+  openModal('resetPwModal');
+}
+
+function submitAddUser() {
+  apiPost('/api/admin/user/create', {
+    email: document.getElementById('newUserEmail').value,
+    first_name: document.getElementById('newUserFirst').value,
+    last_name: document.getElementById('newUserLast').value,
+    password: document.getElementById('newUserPw').value,
+    role: document.getElementById('newUserRole').value,
+    categories: document.getElementById('newUserCats').value || 'All',
+  }).then(r => { if (r.ok) { showToast('User created', 'success'); setTimeout(() => location.reload(), 500); }});
+}
+
+function submitEditUser() {
+  apiPost('/api/admin/user/update', {
+    email: document.getElementById('editUserEmail').value,
+    first_name: document.getElementById('editUserFirst').value,
+    last_name: document.getElementById('editUserLast').value,
+    role: document.getElementById('editUserRole').value,
+    categories: document.getElementById('editUserCats').value,
+  }).then(r => { if (r.ok) { showToast('User updated', 'success'); setTimeout(() => location.reload(), 500); }});
+}
+
+function submitResetPw() {
+  apiPost('/api/admin/user/reset-password', {
+    email: document.getElementById('resetPwEmail').value,
+    password: document.getElementById('resetPwValue').value,
+  }).then(r => { if (r.ok) { showToast('Password reset', 'success'); closeModal('resetPwModal'); }});
+}
+
+function deleteUser(email) {
+  showConfirm('Delete User', 'Are you sure you want to delete ' + email + '?', function() {
+    apiPost('/api/admin/user/delete', { email: email })
+      .then(r => { if (r.ok) { showToast('User deleted', 'success'); setTimeout(() => location.reload(), 500); }});
+  });
+}
+</script>
+{% endblock %}

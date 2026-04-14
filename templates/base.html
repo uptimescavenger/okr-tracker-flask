@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ config.PAGE_TITLE }}</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  {% if error %}
+  <div class="login-page">
+    <div class="login-card" style="text-align:center;">
+      <h2 style="color:var(--danger);margin-bottom:12px;">{{ error }}</h2>
+      <a href="{{ url_for('login_page') }}" class="btn btn-primary">Go to Login</a>
+    </div>
+  </div>
+  {% else %}
+  {% block body %}{% endblock %}
+  {% endif %}
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Confirm dialog -->
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-dialog">
+      <div class="confirm-title" id="confirmTitle">Confirm</div>
+      <div class="confirm-text" id="confirmText">Are you sure?</div>
+      <div class="confirm-actions">
+        <button class="btn btn-secondary" onclick="closeConfirm()">Cancel</button>
+        <button class="btn btn-danger" id="confirmBtn" onclick="confirmAction()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
