@@ -200,6 +200,7 @@ def tracker():
             "last_updated": okr_row.get("last_updated", ""),
             "progress": round(pct, 1),
             "color": color,
+            "cat_color": data.category_color(okr_row.get("category", "")),
             "krs": kr_list,
             "notes": okr_notes.to_dict("records") if not okr_notes.empty else [],
         })

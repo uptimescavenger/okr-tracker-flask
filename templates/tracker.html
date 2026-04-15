@@ -79,7 +79,7 @@
       <div class="okr-tabs" id="okrTabs">
         {% for okr in okrs %}
         <button class="okr-tab {{ 'active' if loop.first }}" data-okr-idx="{{ loop.index0 }}" onclick="switchOkrTab({{ loop.index0 }})">
-          <span class="progress-dot" style="background:{{ okr.color }}"></span>
+          <span class="progress-dot" style="background:{{ okr.cat_color }}"></span>
           {{ okr.title|truncate(30) }}
         </button>
         {% endfor %}

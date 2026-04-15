@@ -89,6 +89,19 @@ def format_value(value, unit: str) -> str:
     return f"{value} {unit}".strip()
 
 
+CATEGORY_COLORS = {
+    "Corporate": "#6366f1",
+    "Growth": "#22c55e",
+    "Operations": "#f59e0b",
+    "Development": "#3b82f6",
+    "Finance": "#ef4444",
+}
+
+
+def category_color(category: str) -> str:
+    return CATEGORY_COLORS.get(category, "#94a3b8")
+
+
 def progress_color(pct: float) -> str:
     if pct >= 75:
         return "#22c55e"
