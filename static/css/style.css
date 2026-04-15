@@ -569,6 +569,12 @@ a:hover { text-decoration: underline; }
   color: var(--text-primary);
 }
 
+.kr-metric:last-child,
+.kr-metric:last-child .kr-metric-label,
+.kr-metric:last-child .kr-metric-value {
+  text-align: right;
+}
+
 .kr-actions {
   display: flex;
   gap: 8px;
@@ -1178,6 +1184,65 @@ a:hover { text-decoration: underline; }
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
+}
+
+/* -- Loading overlay -- */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 3000;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loading-overlay.active { display: flex; }
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--primary-bg);
+  border-top: 4px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-overlay .loading-message {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* -- Required field indicator -- */
+.required::after {
+  content: " *";
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* -- Input error state -- */
+.input-error,
+.form-input.input-error,
+.form-select.input-error,
+.form-textarea.input-error,
+.note-input.input-error {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
 }
 
 /* -- Category dot colors -- */

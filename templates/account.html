@@ -44,15 +44,15 @@
       </div>
       <div style="padding:20px;">
         <div class="form-group">
-          <label class="form-label">Current Password</label>
+          <label class="form-label required">Current Password</label>
           <input type="password" class="form-input" id="currentPw" style="max-width:350px;">
         </div>
         <div class="form-group">
-          <label class="form-label">New Password</label>
+          <label class="form-label required">New Password</label>
           <input type="password" class="form-input" id="newPw" style="max-width:350px;">
         </div>
         <div class="form-group">
-          <label class="form-label">Confirm New Password</label>
+          <label class="form-label required">Confirm New Password</label>
           <input type="password" class="form-input" id="confirmPw" style="max-width:350px;">
         </div>
         <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
@@ -66,18 +66,22 @@
 {% block scripts %}
 <script>
 function changePassword() {
+  if (!validateRequired([
+    { id: 'currentPw', label: 'Current Password' },
+    { id: 'newPw', label: 'New Password' },
+    { id: 'confirmPw', label: 'Confirm New Password' },
+  ])) return;
   const current = document.getElementById('currentPw').value;
   const newPw = document.getElementById('newPw').value;
   const confirm = document.getElementById('confirmPw').value;
 
-  if (!current || !newPw) { showToast('Please fill in all fields', 'error'); return; }
   if (newPw !== confirm) { showToast('New passwords do not match', 'error'); return; }
   if (newPw.length < 4) { showToast('Password must be at least 4 characters', 'error'); return; }
 
   apiPost('/api/account/change-password', {
     current_password: current,
     new_password: newPw,
-  }).then(r => {
+  }, 'Updating password...').then(r => {
     const el = document.getElementById('pwResult');
     if (r.ok) {
       el.innerHTML = '<div class="flash-msg success">Password changed successfully!</div>';

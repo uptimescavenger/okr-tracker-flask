@@ -19,6 +19,12 @@
   {% block body %}{% endblock %}
   {% endif %}
 
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-message" id="loadingText">Loading...</div>
+  </div>
+
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Confirm dialog -->

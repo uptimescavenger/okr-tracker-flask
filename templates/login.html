@@ -17,13 +17,13 @@
     {% endif %}
     {% endwith %}
 
-    <form method="POST" action="{{ url_for('login_page') }}">
+    <form method="POST" action="{{ url_for('login_page') }}" onsubmit="showLoading('Signing in...');">
       <div class="form-group">
-        <label class="form-label" for="email">Email</label>
-        <input type="email" class="form-input" id="email" name="email" required autocomplete="email" autofocus>
+        <label class="form-label required" for="email">Email</label>
+        <input type="email" class="form-input" id="email" name="email" required autocomplete="email" autofocus placeholder="you@company.com">
       </div>
       <div class="form-group">
-        <label class="form-label" for="password">Password</label>
+        <label class="form-label required" for="password">Password</label>
         <input type="password" class="form-input" id="password" name="password" required autocomplete="current-password">
       </div>
       <div class="checkbox-group">

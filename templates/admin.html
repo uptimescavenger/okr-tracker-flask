@@ -54,19 +54,19 @@
   <div class="modal">
     <div class="modal-title">Add User</div>
     <div class="form-group">
-      <label class="form-label">Email</label>
-      <input type="email" class="form-input" id="newUserEmail">
+      <label class="form-label required">Email</label>
+      <input type="email" class="form-input" id="newUserEmail" placeholder="user@company.com">
     </div>
     <div class="form-group">
-      <label class="form-label">First Name</label>
+      <label class="form-label required">First Name</label>
       <input type="text" class="form-input" id="newUserFirst">
     </div>
     <div class="form-group">
-      <label class="form-label">Last Name</label>
+      <label class="form-label required">Last Name</label>
       <input type="text" class="form-input" id="newUserLast">
     </div>
     <div class="form-group">
-      <label class="form-label">Password</label>
+      <label class="form-label required">Password</label>
       <input type="password" class="form-input" id="newUserPw">
     </div>
     <div class="form-group">
@@ -92,11 +92,11 @@
     <div class="modal-title">Edit User</div>
     <input type="hidden" id="editUserEmail">
     <div class="form-group">
-      <label class="form-label">First Name</label>
+      <label class="form-label required">First Name</label>
       <input type="text" class="form-input" id="editUserFirst">
     </div>
     <div class="form-group">
-      <label class="form-label">Last Name</label>
+      <label class="form-label required">Last Name</label>
       <input type="text" class="form-input" id="editUserLast">
     </div>
     <div class="form-group">
@@ -123,7 +123,7 @@
     <input type="hidden" id="resetPwEmail">
     <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;" id="resetPwInfo"></p>
     <div class="form-group">
-      <label class="form-label">New Password</label>
+      <label class="form-label required">New Password</label>
       <input type="password" class="form-input" id="resetPwValue">
     </div>
     <div class="modal-actions">
@@ -153,6 +153,12 @@ function openResetPwModal(email) {
 }
 
 function submitAddUser() {
+  if (!validateRequired([
+    { id: 'newUserEmail', label: 'Email' },
+    { id: 'newUserFirst', label: 'First Name' },
+    { id: 'newUserLast', label: 'Last Name' },
+    { id: 'newUserPw', label: 'Password' },
+  ])) return;
   apiPost('/api/admin/user/create', {
     email: document.getElementById('newUserEmail').value,
     first_name: document.getElementById('newUserFirst').value,
@@ -160,30 +166,37 @@ function submitAddUser() {
     password: document.getElementById('newUserPw').value,
     role: document.getElementById('newUserRole').value,
     categories: document.getElementById('newUserCats').value || 'All',
-  }).then(r => { if (r.ok) { showToast('User created', 'success'); setTimeout(() => location.reload(), 500); }});
+  }, 'Creating user...').then(r => { if (r.ok) { showToast('User created', 'success'); showLoading('Reloading...'); setTimeout(() => location.reload(), 500); }});
 }
 
 function submitEditUser() {
+  if (!validateRequired([
+    { id: 'editUserFirst', label: 'First Name' },
+    { id: 'editUserLast', label: 'Last Name' },
+  ])) return;
   apiPost('/api/admin/user/update', {
     email: document.getElementById('editUserEmail').value,
     first_name: document.getElementById('editUserFirst').value,
     last_name: document.getElementById('editUserLast').value,
     role: document.getElementById('editUserRole').value,
     categories: document.getElementById('editUserCats').value,
-  }).then(r => { if (r.ok) { showToast('User updated', 'success'); setTimeout(() => location.reload(), 500); }});
+  }, 'Saving user...').then(r => { if (r.ok) { showToast('User updated', 'success'); showLoading('Reloading...'); setTimeout(() => location.reload(), 500); }});
 }
 
 function submitResetPw() {
+  if (!validateRequired([
+    { id: 'resetPwValue', label: 'New Password' },
+  ])) return;
   apiPost('/api/admin/user/reset-password', {
     email: document.getElementById('resetPwEmail').value,
     password: document.getElementById('resetPwValue').value,
-  }).then(r => { if (r.ok) { showToast('Password reset', 'success'); closeModal('resetPwModal'); }});
+  }, 'Resetting password...').then(r => { if (r.ok) { showToast('Password reset', 'success'); closeModal('resetPwModal'); }});
 }
 
 function deleteUser(email) {
   showConfirm('Delete User', 'Are you sure you want to delete ' + email + '?', function() {
-    apiPost('/api/admin/user/delete', { email: email })
-      .then(r => { if (r.ok) { showToast('User deleted', 'success'); setTimeout(() => location.reload(), 500); }});
+    apiPost('/api/admin/user/delete', { email: email }, 'Deleting user...')
+      .then(r => { if (r.ok) { showToast('User deleted', 'success'); showLoading('Reloading...'); setTimeout(() => location.reload(), 500); }});
   });
 }
 </script>

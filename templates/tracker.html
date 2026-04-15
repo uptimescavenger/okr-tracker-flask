@@ -297,16 +297,16 @@
   <div class="modal">
     <div class="modal-title">Add Objective</div>
     <div class="form-group">
-      <label class="form-label">Title</label>
-      <input type="text" class="form-input" id="okrTitle">
+      <label class="form-label required">Title</label>
+      <input type="text" class="form-input" id="okrTitle" placeholder="Enter objective title">
     </div>
     <div class="form-group">
       <label class="form-label">Description</label>
-      <textarea class="form-textarea" id="okrDesc" rows="2"></textarea>
+      <textarea class="form-textarea" id="okrDesc" rows="2" placeholder="Optional description"></textarea>
     </div>
     <div class="form-group">
-      <label class="form-label">Owner</label>
-      <input type="text" class="form-input" id="okrOwner">
+      <label class="form-label required">Owner</label>
+      <input type="text" class="form-input" id="okrOwner" placeholder="Who owns this objective?">
     </div>
     <div class="form-group">
       <label class="form-label">Target Date</label>
@@ -333,7 +333,7 @@
     <div class="modal-title">Edit Objective</div>
     <input type="hidden" id="editOkrId">
     <div class="form-group">
-      <label class="form-label">Title</label>
+      <label class="form-label required">Title</label>
       <input type="text" class="form-input" id="editOkrTitle">
     </div>
     <div class="form-group">
@@ -341,7 +341,7 @@
       <textarea class="form-textarea" id="editOkrDesc" rows="2"></textarea>
     </div>
     <div class="form-group">
-      <label class="form-label">Owner</label>
+      <label class="form-label required">Owner</label>
       <input type="text" class="form-input" id="editOkrOwner">
     </div>
     <div class="form-group">
@@ -390,20 +390,20 @@
     <div class="modal-title">Add Key Result</div>
     <input type="hidden" id="krOkrId">
     <div class="form-group">
-      <label class="form-label">Name</label>
-      <input type="text" class="form-input" id="krName">
+      <label class="form-label required">Name</label>
+      <input type="text" class="form-input" id="krName" placeholder="What will you measure?">
     </div>
     <div class="form-group">
       <label class="form-label">Owner</label>
-      <input type="text" class="form-input" id="krOwner">
+      <input type="text" class="form-input" id="krOwner" placeholder="Who owns this KR?">
     </div>
     <div class="form-group">
-      <label class="form-label">Target Value</label>
-      <input type="number" class="form-input" id="krTarget" step="any">
+      <label class="form-label required">Target Value</label>
+      <input type="number" class="form-input" id="krTarget" step="1" placeholder="e.g. 100">
     </div>
     <div class="form-group">
-      <label class="form-label">Baseline Value</label>
-      <input type="number" class="form-input" id="krBaseline" value="0" step="any">
+      <label class="form-label required">Baseline Value</label>
+      <input type="number" class="form-input" id="krBaseline" value="0" step="1">
     </div>
     <div class="form-group">
       <label class="form-label">Direction</label>
@@ -429,7 +429,7 @@
     <div class="modal-title">Edit Key Result</div>
     <input type="hidden" id="editKrId">
     <div class="form-group">
-      <label class="form-label">Name</label>
+      <label class="form-label required">Name</label>
       <input type="text" class="form-input" id="editKrName">
     </div>
     <div class="form-group">
@@ -437,12 +437,12 @@
       <input type="text" class="form-input" id="editKrOwner">
     </div>
     <div class="form-group">
-      <label class="form-label">Target Value</label>
-      <input type="number" class="form-input" id="editKrTarget" step="any">
+      <label class="form-label required">Target Value</label>
+      <input type="number" class="form-input" id="editKrTarget" step="1">
     </div>
     <div class="form-group">
-      <label class="form-label">Baseline Value</label>
-      <input type="number" class="form-input" id="editKrBaseline" step="any">
+      <label class="form-label required">Baseline Value</label>
+      <input type="number" class="form-input" id="editKrBaseline" step="1">
     </div>
     <div class="form-group">
       <label class="form-label">Direction</label>
@@ -470,8 +470,8 @@
     <input type="hidden" id="updateKrOkrId">
     <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:16px;" id="updateKrInfo"></p>
     <div class="form-group">
-      <label class="form-label">New Value</label>
-      <input type="number" class="form-input" id="updateKrValue" step="any">
+      <label class="form-label required">New Value</label>
+      <input type="number" class="form-input" id="updateKrValue" step="1">
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('updateKrModal')">Cancel</button>

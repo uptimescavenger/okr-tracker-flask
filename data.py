@@ -72,7 +72,7 @@ def okr_summary_stats_from_progress(progress_map: dict[str, float]) -> dict:
     total = len(values)
     return {
         "total": total,
-        "avg_progress": round(sum(values) / total, 1),
+        "avg_progress": int(round(sum(values) / total)),
         "completed": sum(1 for v in values if v >= 100),
         "at_risk": sum(1 for v in values if v < 25),
     }
@@ -136,6 +136,10 @@ def category_color(category: str) -> str:
 
 def format_value(value, unit: str) -> str:
     unit = str(unit).strip()
+    try:
+        value = int(round(float(value)))
+    except (ValueError, TypeError):
+        value = 0
     if unit in PREFIX_UNITS:
         return f"{unit}{value}"
     return f"{value} {unit}".strip()

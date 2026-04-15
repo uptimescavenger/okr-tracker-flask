@@ -22,7 +22,7 @@
       <h3 style="font-size:1rem;font-weight:700;margin-bottom:8px;">Test Email Setup</h3>
       <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;">Send a test email to verify your Gmail API configuration is working correctly.</p>
       <div class="form-group" style="max-width:400px;">
-        <label class="form-label">Recipient Email</label>
+        <label class="form-label required">Recipient Email</label>
         <input type="email" class="form-input" id="testEmailTo" value="{{ auth.user_email() }}">
       </div>
       <button class="btn btn-primary" onclick="sendTestEmail()" id="testEmailBtn">
@@ -48,7 +48,7 @@
       <h3 style="font-size:1rem;font-weight:700;margin-bottom:8px;">Update Requests</h3>
       <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;">Send nudge emails to team members with stale Key Results (not updated in 7+ days).</p>
       <div class="form-group" style="max-width:400px;">
-        <label class="form-label">Recipient Email</label>
+        <label class="form-label required">Recipient Email</label>
         <input type="email" class="form-input" id="nudgeEmailTo" placeholder="user@company.com">
       </div>
       <button class="btn btn-primary" onclick="sendNudge()">
@@ -84,18 +84,18 @@ function switchEmailTab(btn, panelId) {
 }
 
 function sendTestEmail() {
+  if (!validateRequired([{ id: 'testEmailTo', label: 'Recipient Email' }])) return;
   const to = document.getElementById('testEmailTo').value;
-  if (!to) { showToast('Enter a recipient email', 'error'); return; }
   const btn = document.getElementById('testEmailBtn');
   btn.disabled = true; btn.textContent = 'Sending...';
-  apiPost('/api/email/test', { recipient: to }).then(r => {
+  apiPost('/api/email/test', { recipient: to }, 'Sending test email...').then(r => {
     btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Send Test Email';
     document.getElementById('testEmailResult').innerHTML = '<div class="flash-msg ' + (r.ok ? 'success' : 'error') + '">' + (r.message || 'Done') + '</div>';
   });
 }
 
 function sendAllReports() {
-  apiPost('/api/email/send-report', { quarter: EMAIL_QUARTER }).then(r => {
+  apiPost('/api/email/send-report', { quarter: EMAIL_QUARTER }, 'Sending reports...').then(r => {
     if (r.results) {
       let html = r.results.map(x => '<div class="flash-msg ' + (x.ok ? 'success' : 'error') + '">' + x.email + ': ' + x.msg + '</div>').join('');
       document.getElementById('reportResults').innerHTML = html;
@@ -104,15 +104,15 @@ function sendAllReports() {
 }
 
 function sendNudge() {
+  if (!validateRequired([{ id: 'nudgeEmailTo', label: 'Recipient Email' }])) return;
   const to = document.getElementById('nudgeEmailTo').value;
-  if (!to) { showToast('Enter a recipient email', 'error'); return; }
-  apiPost('/api/email/send-nudge', { quarter: EMAIL_QUARTER, user: { email: to } }).then(r => {
+  apiPost('/api/email/send-nudge', { quarter: EMAIL_QUARTER, user: { email: to } }, 'Sending update request...').then(r => {
     document.getElementById('nudgeResult').innerHTML = '<div class="flash-msg ' + (r.ok ? 'success' : 'error') + '">' + (r.message || 'Done') + '</div>';
   });
 }
 
 function sendDigest() {
-  apiPost('/api/email/send-digest', { quarter: EMAIL_QUARTER }).then(r => {
+  apiPost('/api/email/send-digest', { quarter: EMAIL_QUARTER }, 'Sending weekly digest...').then(r => {
     if (r.results) {
       let html = r.results.map(x => '<div class="flash-msg ' + (x.ok ? 'success' : 'error') + '">' + x.email + ': ' + x.msg + '</div>').join('');
       document.getElementById('digestResults').innerHTML = html;
