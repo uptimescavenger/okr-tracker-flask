@@ -7,7 +7,7 @@ import os
 from datetime import date
 
 # ---------- Google Sheets ----------
-SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "YOUR_SPREADSHEET_ID_HERE")
+SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "1JNgemdOvb8JstpGnlkxumT62qkK3wLyNNdDbTq6xTxo")
 
 # GCP Service Account credentials from env vars
 GCP_SERVICE_ACCOUNT = {
