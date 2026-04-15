@@ -315,7 +315,7 @@
     <div class="form-group">
       <label class="form-label">Category</label>
       <select class="form-select" id="okrCategory">
-        {% for cat in categories %}
+        {% for cat in creatable_categories %}
         <option value="{{ cat }}">{{ cat }}</option>
         {% endfor %}
       </select>
@@ -351,7 +351,7 @@
     <div class="form-group">
       <label class="form-label">Category</label>
       <select class="form-select" id="editOkrCategory">
-        {% for cat in categories %}
+        {% for cat in creatable_categories %}
         <option value="{{ cat }}">{{ cat }}</option>
         {% endfor %}
       </select>

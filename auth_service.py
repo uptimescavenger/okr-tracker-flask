@@ -166,6 +166,28 @@ def allowed_filter_options() -> list[str]:
 def can_create_okr() -> bool:
     return user_role() in ("Admin", "Manager")
 
+def can_create_okr_in_category(category: str) -> bool:
+    """Check if user can create an OKR in a specific category."""
+    role = user_role()
+    if role == "Admin":
+        return True
+    if role == "Manager":
+        # Managers cannot create Corporate OKRs
+        if category == "Corporate":
+            return False
+        return category in user_categories() or category == ""
+    return False
+
+def creatable_categories() -> list[str]:
+    """Return the list of categories the current user can create OKRs in."""
+    role = user_role()
+    if role == "Admin":
+        return config.OKR_CATEGORIES
+    if role == "Manager":
+        # Managers can only create in their own categories, NOT Corporate
+        return [c for c in user_categories() if c != "Corporate"]
+    return []
+
 def can_create_kr() -> bool:
     return user_role() in ("Admin", "Manager")
 
@@ -186,7 +208,10 @@ def can_delete_okr(category: str = "") -> bool:
     if role == "Admin":
         return True
     if role == "Manager":
-        return category in user_categories() or category == ""
+        # Managers cannot delete Corporate or uncategorized OKRs
+        if category == "Corporate" or category == "":
+            return False
+        return category in user_categories()
     return False
 
 def can_delete_kr(category: str = "") -> bool:
@@ -194,7 +219,10 @@ def can_delete_kr(category: str = "") -> bool:
     if role == "Admin":
         return True
     if role == "Manager":
-        return category in user_categories() or category == ""
+        # Managers cannot delete KRs under Corporate or uncategorized OKRs
+        if category == "Corporate" or category == "":
+            return False
+        return category in user_categories()
     return False
 
 def is_admin() -> bool:

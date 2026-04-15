@@ -213,6 +213,7 @@ def tracker():
         stats=stats,
         okrs=okr_list,
         categories=config.OKR_CATEGORIES,
+        creatable_categories=auth.creatable_categories(),
     )
 
 
@@ -231,6 +232,9 @@ def api_add_okr():
     if not auth.can_create_okr():
         return jsonify({"ok": False, "error": "Permission denied"}), 403
     d = request.json
+    cat = d.get("category", "")
+    if not auth.can_create_okr_in_category(cat):
+        return jsonify({"ok": False, "error": f"You don't have permission to create OKRs in {cat or 'this'} category"}), 403
     quarter = d.get("quarter", config.current_quarter())
     okr_id = str(uuid.uuid4())[:8]
     now = datetime.now().strftime("%m/%d/%Y %H:%M")
