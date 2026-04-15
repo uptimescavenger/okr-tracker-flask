@@ -544,6 +544,17 @@ a:hover { text-decoration: underline; }
   margin-bottom: 8px;
 }
 
+.kr-description {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border-left: 3px solid var(--border);
+  border-radius: 0 4px 4px 0;
+}
+
 .kr-metrics {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -376,6 +376,7 @@ function openAddKrModal(okrId) {
   document.getElementById('krTarget').value = '';
   document.getElementById('krBaseline').value = '0';
   document.getElementById('krUnit').value = '';
+  document.getElementById('krDescription').value = '';
   openModal('addKrModal');
 }
 
@@ -397,6 +398,7 @@ function submitAddKr() {
     baseline_value: Math.round(parseFloat(document.getElementById('krBaseline').value) || 0),
     direction: document.getElementById('krDirection').value,
     unit: document.getElementById('krUnit').value,
+    description: document.getElementById('krDescription').value,
   }, 'Creating key result...').then(r => {
     if (r.ok) {
       showToast('Key Result created', 'success');
@@ -416,6 +418,7 @@ function openEditKrModal(kr) {
   document.getElementById('editKrBaseline').value = kr.baseline_value;
   document.getElementById('editKrDirection').value = kr.direction;
   document.getElementById('editKrUnit').value = kr.unit || '';
+  document.getElementById('editKrDescription').value = kr.description || '';
   openModal('editKrModal');
 }
 
@@ -437,6 +440,7 @@ function submitEditKr() {
     baseline_value: Math.round(parseFloat(document.getElementById('editKrBaseline').value) || 0),
     direction: document.getElementById('editKrDirection').value,
     unit: document.getElementById('editKrUnit').value,
+    description: document.getElementById('editKrDescription').value,
   }, 'Saving key result...').then(r => {
     if (r.ok) {
       showToast('Key Result updated', 'success');

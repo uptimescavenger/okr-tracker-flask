@@ -190,6 +190,10 @@
             {% if kr.last_updated %} &bull; Updated: {{ kr.last_updated }}{% endif %}
           </div>
 
+          {% if kr.description %}
+          <div class="kr-description">{{ kr.description }}</div>
+          {% endif %}
+
           <div class="progress-bar sm">
             <div class="progress-fill" style="width:{{ [kr.achievement, 100]|min }}%;background:{{ kr.color }}"></div>
           </div>
@@ -416,6 +420,10 @@
       <label class="form-label">Unit</label>
       <input type="text" class="form-input" id="krUnit" placeholder="e.g. %, $, users">
     </div>
+    <div class="form-group">
+      <label class="form-label">Description <span style="font-weight:400;color:var(--text-muted);font-size:0.8rem;">(optional)</span></label>
+      <textarea class="form-input" id="krDescription" rows="2" placeholder="Add context or notes about this key result..." style="resize:vertical;min-height:60px;"></textarea>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('addKrModal')">Cancel</button>
       <button class="btn btn-primary" onclick="submitAddKr()">Create</button>
@@ -454,6 +462,10 @@
     <div class="form-group">
       <label class="form-label">Unit</label>
       <input type="text" class="form-input" id="editKrUnit">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description <span style="font-weight:400;color:var(--text-muted);font-size:0.8rem;">(optional)</span></label>
+      <textarea class="form-input" id="editKrDescription" rows="2" placeholder="Add context or notes about this key result..." style="resize:vertical;min-height:60px;"></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('editKrModal')">Cancel</button>

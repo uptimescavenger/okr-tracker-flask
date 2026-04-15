@@ -203,6 +203,7 @@ def tracker():
                 "direction": kr_row.get("direction", "increase"),
                 "unit": kr_row.get("unit", ""),
                 "last_updated": kr_row.get("last_updated", ""),
+                "description": kr_row.get("description", ""),
                 "achievement": int(round(achievement)),
                 "color": data.progress_color(achievement),
                 "current_display": data.format_value(kr_row.get("current_value", 0), kr_row.get("unit", "")),
@@ -325,7 +326,7 @@ def api_add_kr():
         kr_id, d.get("okr_id", ""), d.get("name", ""),
         d.get("owner", ""), 0, d.get("target_value", 0),
         d.get("baseline_value", 0), d.get("direction", "increase"),
-        d.get("unit", ""), now,
+        d.get("unit", ""), now, d.get("description", ""),
     ]
     sheets.add_kpi(quarter, row)
     return jsonify({"ok": True, "id": kr_id})
@@ -341,7 +342,7 @@ def api_edit_kr():
     kr_id = d.get("id")
     now = datetime.now().strftime("%m/%d/%Y %H:%M")
     fields = {}
-    for f in ("name", "owner", "target_value", "baseline_value", "direction", "unit"):
+    for f in ("name", "owner", "target_value", "baseline_value", "direction", "unit", "description"):
         if f in d:
             fields[f] = d[f]
     fields["last_updated"] = now

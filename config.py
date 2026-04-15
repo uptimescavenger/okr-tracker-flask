@@ -73,6 +73,7 @@ OKR_CATEGORIES = ["Corporate", "Growth", "Operations", "Development", "Finance"]
 KPI_COLUMNS = [
     "id", "okr_id", "name", "owner", "current_value",
     "target_value", "baseline_value", "direction", "unit", "last_updated",
+    "description",
 ]
 
 KPI_HISTORY_COLUMNS = ["kpi_id", "date", "value"]
