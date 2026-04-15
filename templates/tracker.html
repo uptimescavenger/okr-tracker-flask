@@ -206,7 +206,7 @@
           </div>
 
           <!-- Trend chart -->
-          {% if kr.trend|length > 1 %}
+          {% if kr.has_trend %}
           <div class="chart-container" id="chart_{{ kr.id }}"></div>
           {% endif %}
 
@@ -482,41 +482,39 @@
 {% endblock %}
 
 {% block scripts %}
+{% if has_any_trend %}
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
 <script>
-  // Render trend charts
-  const CHART_DATA = {{ okrs|tojson }};
+  // Render trend charts — minimal payload (only kr_id + trend arrays)
+  const CHART_DATA = {{ chart_data|tojson }};
   document.addEventListener('DOMContentLoaded', function() {
-    CHART_DATA.forEach(function(okr) {
-      okr.krs.forEach(function(kr) {
-        if (kr.trend && kr.trend.length > 1) {
-          const el = document.getElementById('chart_' + kr.id);
-          if (el) {
-            Plotly.newPlot(el, [{
-              x: kr.trend.map(p => p.date),
-              y: kr.trend.map(p => p.value),
-              type: 'scatter',
-              mode: 'lines+markers',
-              line: { color: '#8b5cf6', width: 2, shape: 'spline' },
-              marker: { size: 6, color: '#8b5cf6' },
-              fill: 'tozeroy',
-              fillcolor: 'rgba(139, 92, 246, 0.10)',
-            }], {
-              margin: { l: 40, r: 16, t: 8, b: 30 },
-              height: 160,
-              xaxis: { tickfont: { size: 9, color: '#94a3b8' }, gridcolor: 'rgba(226,232,240,0.6)' },
-              yaxis: { tickfont: { size: 9, color: '#94a3b8' }, gridcolor: 'rgba(226,232,240,0.6)' },
-              paper_bgcolor: 'transparent',
-              plot_bgcolor: 'transparent',
-              showlegend: false,
-            }, { responsive: true, displayModeBar: false });
-          }
-        }
-      });
+    CHART_DATA.forEach(function(kr) {
+      const el = document.getElementById('chart_' + kr.id);
+      if (el && kr.trend && kr.trend.length > 1) {
+        Plotly.newPlot(el, [{
+          x: kr.trend.map(p => p.date),
+          y: kr.trend.map(p => p.value),
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#8b5cf6', width: 2, shape: 'spline' },
+          marker: { size: 6, color: '#8b5cf6' },
+          fill: 'tozeroy',
+          fillcolor: 'rgba(139, 92, 246, 0.10)',
+        }], {
+          margin: { l: 40, r: 16, t: 8, b: 30 },
+          height: 160,
+          xaxis: { tickfont: { size: 9, color: '#94a3b8' }, gridcolor: 'rgba(226,232,240,0.6)' },
+          yaxis: { tickfont: { size: 9, color: '#94a3b8' }, gridcolor: 'rgba(226,232,240,0.6)' },
+          paper_bgcolor: 'transparent',
+          plot_bgcolor: 'transparent',
+          showlegend: false,
+        }, { responsive: true, displayModeBar: false });
+      }
     });
   });
-
-  // Current quarter for API calls
+</script>
+{% endif %}
+<script>
   const CURRENT_QUARTER = "{{ quarter }}";
 </script>
 {% endblock %}

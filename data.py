@@ -1,6 +1,11 @@
 """
 Data processing helpers — aggregation, formatting, trend computation.
 No framework dependencies.
+
+Optimizations:
+- build_kpi_trend uses pre-parsed _parsed_date from sheets.read_kpi_history()
+- notes_for uses pre-parsed _parsed_ts from sheets.read_notes()
+- compute_all_progress builds progress dict in one pass (avoids N+1)
 """
 
 import pandas as pd
@@ -36,58 +41,85 @@ def okr_progress_from_krs(okr_id: str, kpis_df: pd.DataFrame) -> float:
     return round(achievements.mean(), 1)
 
 
+def compute_all_progress(okr_ids: list[str], kpis_df: pd.DataFrame) -> dict[str, float]:
+    """Compute progress for all OKRs in one pass — avoids N+1 pattern."""
+    result = {}
+    if kpis_df.empty:
+        return {oid: 0.0 for oid in okr_ids}
+    # Pre-compute achievements for all KPIs once
+    kpis_df = kpis_df.copy()
+    kpis_df["_achievement"] = kpis_df.apply(kpi_achievement, axis=1)
+    for okr_id in okr_ids:
+        krs = kpis_df[kpis_df["okr_id"] == str(okr_id)]
+        if krs.empty:
+            result[okr_id] = 0.0
+        else:
+            result[okr_id] = round(krs["_achievement"].mean(), 1)
+    return result
+
+
 def krs_for_okr(okr_id: str, kpis_df: pd.DataFrame) -> pd.DataFrame:
     if kpis_df.empty:
         return kpis_df
     return kpis_df[kpis_df["okr_id"] == str(okr_id)]
 
 
-def okr_summary_stats(okrs_df: pd.DataFrame, kpis_df: pd.DataFrame) -> dict:
-    if okrs_df.empty:
+def okr_summary_stats_from_progress(progress_map: dict[str, float]) -> dict:
+    """Build stats from pre-computed progress dict."""
+    if not progress_map:
         return {"total": 0, "avg_progress": 0, "completed": 0, "at_risk": 0}
-    progresses = okrs_df["id"].apply(lambda oid: okr_progress_from_krs(oid, kpis_df))
+    values = list(progress_map.values())
+    total = len(values)
     return {
-        "total": len(okrs_df),
-        "avg_progress": round(progresses.mean(), 1),
-        "completed": int((progresses >= 100).sum()),
-        "at_risk": int((progresses < 25).sum()),
+        "total": total,
+        "avg_progress": round(sum(values) / total, 1),
+        "completed": sum(1 for v in values if v >= 100),
+        "at_risk": sum(1 for v in values if v < 25),
     }
 
 
 def build_kpi_trend(history_df: pd.DataFrame, kpi_id: str) -> list[dict]:
+    """Build trend data using pre-parsed _parsed_date column."""
     if history_df.empty:
         return []
-    subset = history_df[history_df["kpi_id"] == str(kpi_id)].copy()
+    subset = history_df[history_df["kpi_id"] == str(kpi_id)]
     if subset.empty:
         return []
-    subset["date"] = pd.to_datetime(subset["date"], format="mixed", dayfirst=False, errors="coerce")
-    subset = subset.dropna(subset=["date"]).sort_values("date")
-    return [{"date": r["date"].strftime("%Y-%m-%d"), "value": r["value"]}
-            for _, r in subset.iterrows()]
+    # Use pre-parsed date if available, otherwise parse
+    if "_parsed_date" in subset.columns:
+        sorted_df = subset.dropna(subset=["_parsed_date"]).sort_values("_parsed_date")
+        return [{"date": r["_parsed_date"].strftime("%Y-%m-%d"), "value": r["value"]}
+                for _, r in sorted_df.iterrows()]
+    else:
+        subset = subset.copy()
+        subset["_d"] = pd.to_datetime(subset["date"], format="mixed", dayfirst=False, errors="coerce")
+        sorted_df = subset.dropna(subset=["_d"]).sort_values("_d")
+        return [{"date": r["_d"].strftime("%Y-%m-%d"), "value": r["value"]}
+                for _, r in sorted_df.iterrows()]
 
 
-def notes_for(notes_df: pd.DataFrame, parent_type: str, parent_id: str) -> pd.DataFrame:
+def notes_for(notes_df: pd.DataFrame, parent_type: str, parent_id: str) -> list[dict]:
+    """Return notes as list of dicts, sorted by timestamp descending.
+    Uses pre-parsed _parsed_ts column for fast sorting."""
     if notes_df.empty:
-        return notes_df
+        return []
     mask = (notes_df["parent_type"] == parent_type) & (
         notes_df["parent_id"] == str(parent_id)
     )
-    subset = notes_df[mask].copy()
-    subset["timestamp_sort"] = pd.to_datetime(
-        subset["timestamp"], format="mixed", dayfirst=False, errors="coerce"
-    )
-    return subset.sort_values("timestamp_sort", ascending=False).drop(columns=["timestamp_sort"])
+    subset = notes_df[mask]
+    if subset.empty:
+        return []
+    if "_parsed_ts" in subset.columns:
+        sorted_df = subset.sort_values("_parsed_ts", ascending=False)
+    else:
+        sorted_df = subset
+    return [
+        {"author": r.get("author", ""), "timestamp": r.get("timestamp", ""), "text": r.get("text", "")}
+        for _, r in sorted_df.iterrows()
+    ]
 
 
 PREFIX_UNITS = {"$", "£", "€", "¥", "₹", "₩", "R$", "CHF"}
-
-
-def format_value(value, unit: str) -> str:
-    unit = str(unit).strip()
-    if unit in PREFIX_UNITS:
-        return f"{unit}{value}"
-    return f"{value} {unit}".strip()
-
 
 CATEGORY_COLORS = {
     "Corporate": "#6366f1",
@@ -100,6 +132,13 @@ CATEGORY_COLORS = {
 
 def category_color(category: str) -> str:
     return CATEGORY_COLORS.get(category, "#94a3b8")
+
+
+def format_value(value, unit: str) -> str:
+    unit = str(unit).strip()
+    if unit in PREFIX_UNITS:
+        return f"{unit}{value}"
+    return f"{value} {unit}".strip()
 
 
 def progress_color(pct: float) -> str:

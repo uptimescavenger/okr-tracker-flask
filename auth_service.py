@@ -2,6 +2,10 @@
 Authentication and user management for OKR Tracker (Flask version).
 Users stored in Google Sheets "Users" tab.
 Passwords hashed with SHA-256 + salt. Remember-me via signed HMAC cookie.
+
+Optimizations:
+- User reads routed through sheets.read_users() (cached with TTL)
+- Write operations clear cache after mutation
 """
 
 import hashlib
@@ -68,7 +72,7 @@ def auto_login_from_cookie(token: str) -> bool:
     return True
 
 
-# -- Sheet access --
+# -- Sheet access (uses cached reads) --
 
 def _get_users_ws():
     import sheets
@@ -76,16 +80,15 @@ def _get_users_ws():
 
 
 def _read_users() -> pd.DataFrame:
-    ws = _get_users_ws()
-    records = ws.get_all_records()
-    if not records:
-        return pd.DataFrame(columns=config.USER_COLUMNS)
-    df = pd.DataFrame(records)
-    for col in config.USER_COLUMNS:
-        if col not in df.columns:
-            df[col] = ""
-    df = df.fillna("")
-    return df
+    """Read users through the cached sheets layer."""
+    import sheets
+    return sheets.read_users()
+
+
+def _clear_users_cache():
+    """Clear cache after user mutations."""
+    import sheets
+    sheets.clear_cache()
 
 
 def seed_admin():
@@ -98,6 +101,7 @@ def seed_admin():
         ["jinesh@uptimehealth.com", "Jinesh", "Patel", pw_hash, "Admin", "All"],
         value_input_option="USER_ENTERED",
     )
+    _clear_users_cache()
 
 
 # -- Public API --
@@ -172,7 +176,6 @@ def can_create_okr_in_category(category: str) -> bool:
     if role == "Admin":
         return True
     if role == "Manager":
-        # Managers cannot create Corporate OKRs
         if category == "Corporate":
             return False
         return category in user_categories() or category == ""
@@ -184,7 +187,6 @@ def creatable_categories() -> list[str]:
     if role == "Admin":
         return config.OKR_CATEGORIES
     if role == "Manager":
-        # Managers can only create in their own categories, NOT Corporate
         return [c for c in user_categories() if c != "Corporate"]
     return []
 
@@ -208,7 +210,6 @@ def can_delete_okr(category: str = "") -> bool:
     if role == "Admin":
         return True
     if role == "Manager":
-        # Managers cannot delete Corporate or uncategorized OKRs
         if category == "Corporate" or category == "":
             return False
         return category in user_categories()
@@ -219,7 +220,6 @@ def can_delete_kr(category: str = "") -> bool:
     if role == "Admin":
         return True
     if role == "Manager":
-        # Managers cannot delete KRs under Corporate or uncategorized OKRs
         if category == "Corporate" or category == "":
             return False
         return category in user_categories()
@@ -269,6 +269,7 @@ def create_user(email: str, first_name: str, last_name: str,
          pw_hash, role, categories],
         value_input_option="USER_ENTERED",
     )
+    _clear_users_cache()
 
 
 def update_user(email: str, fields: dict):
@@ -283,6 +284,7 @@ def update_user(email: str, fields: dict):
         col_idx = config.USER_COLUMNS.index(col_name)
         row_values[col_idx] = value
     ws.update(f"A{cell.row}", [row_values], value_input_option="USER_ENTERED")
+    _clear_users_cache()
 
 
 def change_password(email: str, new_password: str):
@@ -296,6 +298,7 @@ def delete_user(email: str):
     if cell is None:
         raise ValueError(f"User '{email}' not found.")
     ws.delete_rows(cell.row)
+    _clear_users_cache()
 
 
 def refresh_current_user():

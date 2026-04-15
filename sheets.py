@@ -1,6 +1,12 @@
 """
 Google Sheets integration layer using gspread.
 All reads/writes go through this module.
+
+Optimizations:
+- Worksheet references cached to avoid repeated API lookups
+- Single .copy() on cache set (not get) since reads use filtering which creates new DFs
+- Users sheet cached with same TTL mechanism
+- Cache TTL configurable via config.CACHE_TTL_SECONDS
 """
 
 import time
@@ -22,9 +28,13 @@ _client_lock = threading.Lock()
 _client: gspread.Client | None = None
 _spreadsheet: gspread.Spreadsheet | None = None
 
-# Simple TTL cache for sheet reads
+# TTL cache: key -> (timestamp, DataFrame)
 _cache: dict[str, tuple[float, pd.DataFrame]] = {}
 _cache_lock = threading.Lock()
+
+# Worksheet reference cache: tab_name -> Worksheet
+_ws_cache: dict[str, gspread.Worksheet] = {}
+_ws_cache_lock = threading.Lock()
 
 
 def _get_client() -> gspread.Client:
@@ -47,12 +57,6 @@ def _get_spreadsheet() -> gspread.Spreadsheet:
     return _spreadsheet
 
 
-def _invalidate_spreadsheet():
-    """Force re-open of spreadsheet on next access (e.g. after auth refresh)."""
-    global _spreadsheet
-    _spreadsheet = None
-
-
 # ---------- Cache helpers ----------
 
 def _cache_get(key: str) -> pd.DataFrame | None:
@@ -60,19 +64,21 @@ def _cache_get(key: str) -> pd.DataFrame | None:
         if key in _cache:
             ts, df = _cache[key]
             if time.time() - ts < config.CACHE_TTL_SECONDS:
-                return df.copy()
+                return df  # No .copy() — reads use filtering which creates new DFs
             del _cache[key]
     return None
 
 
 def _cache_set(key: str, df: pd.DataFrame):
     with _cache_lock:
-        _cache[key] = (time.time(), df.copy())
+        _cache[key] = (time.time(), df.copy())  # Copy on write only
 
 
 def clear_cache():
     with _cache_lock:
         _cache.clear()
+    with _ws_cache_lock:
+        _ws_cache.clear()
 
 
 # ---------- Worksheet helpers ----------
@@ -80,15 +86,20 @@ def clear_cache():
 def _get_or_create_worksheet(
     tab_name: str, headers: list[str], rows: int = 200, cols: int = 20
 ) -> gspread.Worksheet:
+    # Check ws reference cache first
+    with _ws_cache_lock:
+        if tab_name in _ws_cache:
+            return _ws_cache[tab_name]
+
     ss = _get_spreadsheet()
     try:
         ws = ss.worksheet(tab_name)
-        existing_headers = ws.row_values(1)
-        if len(existing_headers) < len(headers):
-            ws.update("A1", [headers], value_input_option="RAW")
     except gspread.WorksheetNotFound:
         ws = ss.add_worksheet(title=tab_name, rows=rows, cols=cols)
         ws.append_row(headers, value_input_option="RAW")
+
+    with _ws_cache_lock:
+        _ws_cache[tab_name] = ws
     return ws
 
 
@@ -146,6 +157,10 @@ def read_kpi_history(quarter: str) -> pd.DataFrame:
     else:
         df = pd.DataFrame(records)
         df["value"] = pd.to_numeric(df["value"], errors="coerce")
+        # Pre-parse dates once at load time
+        df["_parsed_date"] = pd.to_datetime(
+            df["date"], format="mixed", dayfirst=False, errors="coerce"
+        )
     _cache_set(cache_key, df)
     return df
 
@@ -161,6 +176,30 @@ def read_notes() -> pd.DataFrame:
         df = pd.DataFrame(columns=config.NOTES_COLUMNS)
     else:
         df = pd.DataFrame(records)
+        # Pre-parse timestamps once at load time
+        df["_parsed_ts"] = pd.to_datetime(
+            df["timestamp"], format="mixed", dayfirst=False, errors="coerce"
+        )
+    _cache_set(cache_key, df)
+    return df
+
+
+def read_users() -> pd.DataFrame:
+    """Cached read of the Users sheet."""
+    cache_key = "users"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+    ws = _get_or_create_worksheet(config.users_tab_name(), config.USER_COLUMNS)
+    records = ws.get_all_records()
+    if not records:
+        df = pd.DataFrame(columns=config.USER_COLUMNS)
+    else:
+        df = pd.DataFrame(records)
+        for col in config.USER_COLUMNS:
+            if col not in df.columns:
+                df[col] = ""
+        df = df.fillna("")
     _cache_set(cache_key, df)
     return df
 
@@ -194,10 +233,12 @@ def update_kpi_value(quarter: str, kpi_id: str, okr_id: str, value: float, updat
     row_values[config.KPI_COLUMNS.index("last_updated")] = updated_at
     ws.update(f"A{cell.row}", [row_values], value_input_option="USER_ENTERED")
 
+    # Append history
     history_tab = f"KPI History {quarter}"
     hws = _get_or_create_worksheet(history_tab, config.KPI_HISTORY_COLUMNS)
     hws.append_row([kpi_id, updated_at, value], value_input_option="USER_ENTERED")
 
+    # Re-read KPIs and sync OKR progress — single cache clear at end
     clear_cache()
     fresh_kpis = read_kpis(quarter)
     _sync_okr_progress(quarter, okr_id, fresh_kpis, updated_at)
@@ -293,12 +334,14 @@ def move_okr(old_quarter: str, new_quarter: str, okr_id: str):
 
     hist_ws = _get_or_create_worksheet(f"KPI History {old_quarter}", config.KPI_HISTORY_COLUMNS)
     all_hist = hist_ws.get_all_values()
+    kr_id_set = set(kr_ids)
     hist_rows = []
     if len(all_hist) > 1:
         for row_vals in all_hist[1:]:
-            if len(row_vals) > 0 and str(row_vals[0]) in kr_ids:
+            if len(row_vals) > 0 and str(row_vals[0]) in kr_id_set:
                 hist_rows.append(row_vals)
 
+    # Write to new quarter
     new_okr_ws = _get_or_create_worksheet(config.okr_tab_name(new_quarter), config.OKR_COLUMNS)
     new_okr_ws.append_row(okr_row, value_input_option="USER_ENTERED")
 
@@ -310,22 +353,22 @@ def move_okr(old_quarter: str, new_quarter: str, okr_id: str):
         new_hist_ws = _get_or_create_worksheet(f"KPI History {new_quarter}", config.KPI_HISTORY_COLUMNS)
         new_hist_ws.append_rows(hist_rows, value_input_option="USER_ENTERED")
 
-    # Delete from old quarter
+    # Delete from old quarter (reverse order to preserve row indices)
     if hist_rows:
         all_hist_fresh = hist_ws.get_all_values()
-        rows_to_del = []
-        for i, row_vals in enumerate(all_hist_fresh[1:], start=2):
-            if len(row_vals) > 0 and str(row_vals[0]) in kr_ids:
-                rows_to_del.append(i)
+        rows_to_del = [
+            i for i, row_vals in enumerate(all_hist_fresh[1:], start=2)
+            if len(row_vals) > 0 and str(row_vals[0]) in kr_id_set
+        ]
         for row_num in reversed(rows_to_del):
             hist_ws.delete_rows(row_num)
 
     if kr_rows:
         all_kpis_fresh = kpi_ws.get_all_values()
-        rows_to_del = []
-        for i, row_vals in enumerate(all_kpis_fresh[1:], start=2):
-            if len(row_vals) > okr_id_col and str(row_vals[okr_id_col]) == str(okr_id):
-                rows_to_del.append(i)
+        rows_to_del = [
+            i for i, row_vals in enumerate(all_kpis_fresh[1:], start=2)
+            if len(row_vals) > okr_id_col and str(row_vals[okr_id_col]) == str(okr_id)
+        ]
         for row_num in reversed(rows_to_del):
             kpi_ws.delete_rows(row_num)
 
@@ -345,10 +388,10 @@ def delete_okr(quarter: str, okr_id: str):
     all_values = kpi_ws.get_all_values()
     if len(all_values) > 1:
         okr_id_col = config.KPI_COLUMNS.index("okr_id")
-        rows_to_delete = []
-        for i, row_vals in enumerate(all_values[1:], start=2):
-            if len(row_vals) > okr_id_col and str(row_vals[okr_id_col]) == str(okr_id):
-                rows_to_delete.append(i)
+        rows_to_delete = [
+            i for i, row_vals in enumerate(all_values[1:], start=2)
+            if len(row_vals) > okr_id_col and str(row_vals[okr_id_col]) == str(okr_id)
+        ]
         for row_num in reversed(rows_to_delete):
             kpi_ws.delete_rows(row_num)
     clear_cache()

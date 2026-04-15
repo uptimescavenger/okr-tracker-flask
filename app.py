@@ -1,5 +1,11 @@
 """
 OKR Tracker — Flask application (deployed on Render).
+
+Optimizations:
+- compute_all_progress eliminates N+1 pattern on OKR progress
+- notes_for returns list[dict] directly (no DataFrame conversion)
+- Minimal chart_data payload (only id + trend, not full OKR tree)
+- flask-compress for gzip responses
 """
 
 import uuid
@@ -22,6 +28,13 @@ app.secret_key = config.SECRET_KEY
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
+# Enable gzip compression if flask-compress is available
+try:
+    from flask_compress import Compress
+    Compress(app)
+except ImportError:
+    pass
+
 
 # ---------- Startup ----------
 
@@ -39,7 +52,6 @@ def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not auth.is_logged_in():
-            # Try remember-me cookie
             token = request.cookies.get("okr_remember")
             if token and auth.auto_login_from_cookie(token):
                 return f(*args, **kwargs)
@@ -78,7 +90,6 @@ def login_page():
     if auth.is_logged_in():
         return redirect(url_for("tracker"))
 
-    # Try remember-me cookie on GET
     if request.method == "GET":
         token = request.cookies.get("okr_remember")
         if token and auth.auto_login_from_cookie(token):
@@ -149,29 +160,40 @@ def tracker():
             okrs_df = okrs_df[okrs_df["category"].isin(user_cats)]
 
     # Filter KPIs to visible OKRs
-    visible_okr_ids = set(okrs_df["id"].astype(str))
-    kpis_df = kpis_df[kpis_df["okr_id"].astype(str).isin(visible_okr_ids)]
+    visible_okr_ids = list(okrs_df["id"].astype(str))
+    visible_okr_id_set = set(visible_okr_ids)
+    kpis_df = kpis_df[kpis_df["okr_id"].astype(str).isin(visible_okr_id_set)]
     visible_kpi_ids = set(kpis_df["id"].astype(str))
     if not history_df.empty:
         history_df = history_df[history_df["kpi_id"].astype(str).isin(visible_kpi_ids)]
 
-    stats = data.okr_summary_stats(okrs_df, kpis_df)
+    # Compute all OKR progress in one pass (avoids N+1)
+    progress_map = data.compute_all_progress(visible_okr_ids, kpis_df)
+    stats = data.okr_summary_stats_from_progress(progress_map)
 
-    # Build OKR data for template
+    # Build OKR data for template + minimal chart payload
     okr_list = []
+    chart_data = []  # Minimal: only kr_id + trend arrays
+    has_any_trend = False
+
     for _, okr_row in okrs_df.iterrows():
         okr_id = str(okr_row["id"])
-        pct = data.okr_progress_from_krs(okr_id, kpis_df)
+        pct = progress_map.get(okr_id, 0.0)
         color = data.progress_color(pct)
         krs = data.krs_for_okr(okr_id, kpis_df)
 
         kr_list = []
+        kr_charts = []
         for _, kr_row in krs.iterrows():
+            kr_id = str(kr_row["id"])
             achievement = data.kpi_achievement(kr_row)
-            kr_notes = data.notes_for(notes_df, "KR", str(kr_row["id"]))
-            trend = data.build_kpi_trend(history_df, str(kr_row["id"]))
+            kr_notes = data.notes_for(notes_df, "KR", kr_id)
+            trend = data.build_kpi_trend(history_df, kr_id)
+            if len(trend) > 1:
+                has_any_trend = True
+                kr_charts.append({"id": kr_id, "trend": trend})
             kr_list.append({
-                "id": str(kr_row["id"]),
+                "id": kr_id,
                 "okr_id": okr_id,
                 "name": kr_row.get("name", ""),
                 "owner": kr_row.get("owner", ""),
@@ -185,8 +207,8 @@ def tracker():
                 "color": data.progress_color(achievement),
                 "current_display": data.format_value(kr_row.get("current_value", 0), kr_row.get("unit", "")),
                 "target_display": data.format_value(kr_row.get("target_value", 0), kr_row.get("unit", "")),
-                "notes": kr_notes.to_dict("records") if not kr_notes.empty else [],
-                "trend": trend,
+                "notes": kr_notes,
+                "has_trend": len(trend) > 1,
             })
 
         okr_notes = data.notes_for(notes_df, "OKR", okr_id)
@@ -202,8 +224,10 @@ def tracker():
             "color": color,
             "cat_color": data.category_color(okr_row.get("category", "")),
             "krs": kr_list,
-            "notes": okr_notes.to_dict("records") if not okr_notes.empty else [],
+            "notes": okr_notes,
         })
+        if kr_charts:
+            chart_data.extend(kr_charts)
 
     return render_template(
         "tracker.html",
@@ -212,6 +236,8 @@ def tracker():
         allowed_categories=allowed,
         stats=stats,
         okrs=okr_list,
+        chart_data=chart_data,
+        has_any_trend=has_any_trend,
         categories=config.OKR_CATEGORIES,
         creatable_categories=auth.creatable_categories(),
     )
@@ -527,6 +553,13 @@ def api_change_password():
     auth.change_password(user["email"], new_pw)
     auth.refresh_current_user()
     return jsonify({"ok": True, "message": "Password changed successfully"})
+
+
+# ---------- Health check ----------
+
+@app.route("/health")
+def health_check():
+    return jsonify({"status": "ok"})
 
 
 # ---------- Error handlers ----------

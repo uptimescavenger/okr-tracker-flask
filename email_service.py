@@ -19,15 +19,21 @@ import data
 
 GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
+_gmail_service = None
+
 
 def _get_gmail_service():
+    global _gmail_service
+    if _gmail_service is not None:
+        return _gmail_service
     if not config.SENDER_EMAIL:
         raise RuntimeError("SENDER_EMAIL is not configured.")
     creds = Credentials.from_service_account_info(
         config.GCP_SERVICE_ACCOUNT, scopes=GMAIL_SCOPES
     )
     delegated = creds.with_subject(config.SENDER_EMAIL)
-    return build("gmail", "v1", credentials=delegated, cache_discovery=False)
+    _gmail_service = build("gmail", "v1", credentials=delegated, cache_discovery=False)
+    return _gmail_service
 
 
 # -- Data Assembly --
@@ -72,17 +78,20 @@ def build_user_report(user, okrs_df, kpis_df, notes_df, quarter):
         if not notes_df.empty:
             okr_notes = data.notes_for(notes_df, "OKR", okr_id)
             kr_ids = [str(k) for k in krs["id"].tolist()] if not krs.empty else []
-            kr_notes_list = [data.notes_for(notes_df, "KR", kid) for kid in kr_ids]
-            all_notes = pd.concat([okr_notes] + kr_notes_list, ignore_index=True) if kr_notes_list else okr_notes
-            if not all_notes.empty:
-                all_notes["_ts"] = pd.to_datetime(all_notes["timestamp"], format="mixed", dayfirst=False, errors="coerce")
-                recent = all_notes[all_notes["_ts"] >= cutoff].sort_values("_ts", ascending=False)
-                for _, n in recent.iterrows():
-                    recent_notes.append({
-                        "author": n.get("author", ""),
-                        "timestamp": str(n.get("timestamp", "")),
-                        "text": str(n.get("text", "")),
-                    })
+            all_notes_list = list(okr_notes)
+            for kid in kr_ids:
+                all_notes_list.extend(data.notes_for(notes_df, "KR", kid))
+            for n in all_notes_list:
+                try:
+                    ts = pd.to_datetime(n.get("timestamp", ""), format="mixed", dayfirst=False)
+                    if pd.notna(ts) and ts >= cutoff:
+                        recent_notes.append({
+                            "author": n.get("author", ""),
+                            "timestamp": str(n.get("timestamp", "")),
+                            "text": str(n.get("text", "")),
+                        })
+                except Exception:
+                    pass
         okr_reports.append({
             "title": okr_row.get("title", ""),
             "category": okr_row.get("category", ""),
