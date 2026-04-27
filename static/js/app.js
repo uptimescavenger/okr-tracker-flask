@@ -457,6 +457,7 @@ function openUpdateKrModal(kr) {
   document.getElementById('updateKrInfo').textContent =
     kr.name + ' \u2014 Current: ' + kr.current_display + ' / Target: ' + kr.target_display;
   document.getElementById('updateKrValue').value = kr.current_value;
+  document.getElementById('updateKrNote').value = '';
   openModal('updateKrModal');
 }
 
@@ -467,17 +468,32 @@ function submitUpdateKr() {
 
   const quarter = typeof CURRENT_QUARTER !== 'undefined' ? CURRENT_QUARTER :
     document.getElementById('quarterSelect')?.value || '';
+  const krId = document.getElementById('updateKrId').value;
+  const noteText = document.getElementById('updateKrNote').value.trim();
+
   apiPost('/api/kr/update', {
     quarter: quarter,
-    id: document.getElementById('updateKrId').value,
+    id: krId,
     okr_id: document.getElementById('updateKrOkrId').value,
     value: Math.round(parseFloat(document.getElementById('updateKrValue').value) || 0),
   }, 'Updating value...').then(r => {
     if (r.ok) {
-      showToast('Value updated', 'success');
       closeModal('updateKrModal');
-      showLoading('Reloading...');
-      setTimeout(() => location.reload(), 500);
+      if (noteText) {
+        apiPost('/api/note/add', {
+          parent_type: 'KR',
+          parent_id: krId,
+          text: noteText,
+        }, 'Saving note...').then(() => {
+          showToast('Value and note saved', 'success');
+          showLoading('Reloading...');
+          setTimeout(() => location.reload(), 500);
+        });
+      } else {
+        showToast('Value updated', 'success');
+        showLoading('Reloading...');
+        setTimeout(() => location.reload(), 500);
+      }
     }
   });
 }
