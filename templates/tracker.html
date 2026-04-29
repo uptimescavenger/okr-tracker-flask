@@ -244,6 +244,12 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-arrow"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="notes-list" style="display:none;">
+              {% if auth.can_add_note() %}
+              <div class="note-form">
+                <textarea class="note-input" placeholder="Add a note..." rows="1" id="noteInput_KR_{{ kr.id }}"></textarea>
+                <button class="btn btn-primary btn-sm" onclick="addNote('KR', '{{ kr.id }}', 'noteInput_KR_{{ kr.id }}')">Add</button>
+              </div>
+              {% endif %}
               {% for note in kr.notes %}
               <div class="note-card">
                 <div class="note-meta">
@@ -253,12 +259,6 @@
                 <div class="note-text">{{ note.text }}</div>
               </div>
               {% endfor %}
-              {% if auth.can_add_note() %}
-              <div class="note-form">
-                <textarea class="note-input" placeholder="Add a note..." rows="1" id="noteInput_KR_{{ kr.id }}"></textarea>
-                <button class="btn btn-primary btn-sm" onclick="addNote('KR', '{{ kr.id }}', 'noteInput_KR_{{ kr.id }}')">Add</button>
-              </div>
-              {% endif %}
             </div>
           </div>
         </div>
@@ -272,6 +272,12 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-arrow"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="notes-list" style="display:none;">
+            {% if auth.can_add_note() %}
+            <div class="note-form">
+              <textarea class="note-input" placeholder="Add a note..." rows="1" id="noteInput_OKR_{{ okr.id }}"></textarea>
+              <button class="btn btn-primary btn-sm" onclick="addNote('OKR', '{{ okr.id }}', 'noteInput_OKR_{{ okr.id }}')">Add</button>
+            </div>
+            {% endif %}
             {% for note in okr.notes %}
             <div class="note-card">
               <div class="note-meta">
@@ -281,12 +287,6 @@
               <div class="note-text">{{ note.text }}</div>
             </div>
             {% endfor %}
-            {% if auth.can_add_note() %}
-            <div class="note-form">
-              <textarea class="note-input" placeholder="Add a note..." rows="1" id="noteInput_OKR_{{ okr.id }}"></textarea>
-              <button class="btn btn-primary btn-sm" onclick="addNote('OKR', '{{ okr.id }}', 'noteInput_OKR_{{ okr.id }}')">Add</button>
-            </div>
-            {% endif %}
           </div>
         </div>
       </div>
