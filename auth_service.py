@@ -193,6 +193,18 @@ def creatable_categories() -> list[str]:
 def can_create_kr() -> bool:
     return user_role() in ("Admin", "Manager")
 
+def can_create_kr_in_category(category: str) -> bool:
+    """Check if user can create a KR in a specific OKR's category.
+    Mirrors can_create_okr_in_category — Managers cannot touch Corporate."""
+    role = user_role()
+    if role == "Admin":
+        return True
+    if role == "Manager":
+        if category == "Corporate":
+            return False
+        return category in user_categories() or category == ""
+    return False
+
 def can_edit_okr() -> bool:
     return user_role() in ("Admin", "Manager")
 

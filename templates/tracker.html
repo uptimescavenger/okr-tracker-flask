@@ -163,7 +163,7 @@
       <div class="kr-section">
         <div class="kr-section-header">
           <span class="kr-section-title">Key Results ({{ okr.krs|length }})</span>
-          {% if auth.can_create_kr() %}
+          {% if auth.can_create_kr_in_category(okr.category) %}
           <button class="btn btn-primary btn-sm" onclick="openAddKrModal('{{ okr.id }}')">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Key Result

@@ -320,6 +320,13 @@ def api_add_kr():
         return jsonify({"ok": False, "error": "Permission denied"}), 403
     d = request.json
     quarter = d.get("quarter", config.current_quarter())
+    # Enforce category-level restriction for Managers
+    okr_id = d.get("okr_id", "")
+    okrs_df = sheets.read_okrs(quarter)
+    okr_row = okrs_df[okrs_df["id"] == str(okr_id)]
+    category = okr_row.iloc[0].get("category", "") if not okr_row.empty else ""
+    if not auth.can_create_kr_in_category(category):
+        return jsonify({"ok": False, "error": "Permission denied"}), 403
     kr_id = str(uuid.uuid4())[:8]
     now = datetime.now().strftime("%m/%d/%Y %H:%M")
     row = [
