@@ -549,3 +549,38 @@ function escapeHtml(text) {
 window.addEventListener('beforeunload', function() {
   showLoading('Loading...');
 });
+
+// ---------- Recent Activity drawer ----------
+
+function setActivityDrawer(open) {
+  const drawer = document.getElementById('activityDrawer');
+  const toggle = document.getElementById('activityToggle');
+  const main = document.querySelector('.main-content');
+  if (!drawer || !toggle || !main) return;
+  if (open) {
+    drawer.classList.add('open');
+    toggle.style.display = 'none';
+    main.classList.add('with-activity');
+  } else {
+    drawer.classList.remove('open');
+    toggle.style.display = '';
+    main.classList.remove('with-activity');
+  }
+  try { localStorage.setItem('okr_activity_open', open ? '1' : '0'); } catch (e) {}
+}
+
+function toggleActivityDrawer() {
+  const drawer = document.getElementById('activityDrawer');
+  if (!drawer) return;
+  setActivityDrawer(!drawer.classList.contains('open'));
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (!document.getElementById('activityDrawer')) return;
+  let open = true;
+  try {
+    const stored = localStorage.getItem('okr_activity_open');
+    if (stored === '0') open = false;
+  } catch (e) {}
+  setActivityDrawer(open);
+});

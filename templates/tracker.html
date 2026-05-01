@@ -7,6 +7,47 @@
   {% endwith %}
 
   <main class="main-content">
+    <!-- Recent Activity drawer (right side, toggleable) -->
+    <button class="activity-toggle" id="activityToggle" onclick="toggleActivityDrawer()" title="Recent activity">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Activity
+      {% if activity and activity|length > 0 %}<span class="activity-toggle-count">{{ activity|length }}</span>{% endif %}
+    </button>
+
+    <aside class="activity-drawer" id="activityDrawer">
+      <div class="activity-drawer-header">
+        <span class="activity-drawer-title">Recent Activity</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="activity-drawer-count">{{ activity|length if activity else 0 }}</span>
+          <button class="activity-drawer-close" onclick="toggleActivityDrawer()" title="Hide">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="activity-drawer-body">
+        {% if not activity %}
+          <div class="activity-empty">No activity yet for this view.</div>
+        {% else %}
+          {% for a in activity %}
+          <div class="activity-item">
+            <div class="activity-row1">
+              <span class="activity-author">{{ a.author }}</span>
+              <span class="activity-time">{{ a.timestamp }}</span>
+            </div>
+            <div class="activity-action">
+              {{ a.verb }}
+              <span class="activity-tag">{{ a.target_label }}</span>
+              <strong>{{ a.target_name }}</strong>
+            </div>
+            {% if a.detail %}
+              <div class="activity-detail">{{ a.detail|truncate(140) }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </aside>
+
     <!-- Filter bar -->
     <div class="filter-bar">
       <div class="filter-bar-inner">

@@ -230,6 +230,17 @@ def tracker():
         if kr_charts:
             chart_data.extend(kr_charts)
 
+    # Activity feed — respect the same visibility filter as the OKR/KR list.
+    # Notes are global, so trim to those whose parent is visible to this user.
+    if not notes_df.empty:
+        visible_notes = notes_df[
+            ((notes_df["parent_type"] == "OKR") & (notes_df["parent_id"].astype(str).isin(visible_okr_id_set)))
+            | ((notes_df["parent_type"] == "KR") & (notes_df["parent_id"].astype(str).isin(visible_kpi_ids)))
+        ]
+    else:
+        visible_notes = notes_df
+    activity = data.recent_activity(visible_notes, history_df, okrs_df, kpis_df, limit=60)
+
     return render_template(
         "tracker.html",
         quarter=quarter,
@@ -241,6 +252,7 @@ def tracker():
         has_any_trend=has_any_trend,
         categories=config.OKR_CATEGORIES,
         creatable_categories=auth.creatable_categories(),
+        activity=activity,
     )
 
 

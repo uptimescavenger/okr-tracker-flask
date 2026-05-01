@@ -119,6 +119,120 @@ def notes_for(notes_df: pd.DataFrame, parent_type: str, parent_id: str) -> list[
     ]
 
 
+def _ts_sort_key(s, parsed=None):
+    """Best-effort timestamp parse for sorting activity entries."""
+    from datetime import datetime
+    if parsed is not None and pd.notna(parsed):
+        return parsed
+    s = str(s).strip()
+    for fmt in ("%m/%d/%Y %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
+                "%m/%d/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s, fmt)
+        except (ValueError, TypeError):
+            continue
+    return datetime.min
+
+
+def recent_activity(
+    notes_df: pd.DataFrame,
+    history_df: pd.DataFrame,
+    okrs_df: pd.DataFrame,
+    kpis_df: pd.DataFrame,
+    limit: int = 60,
+) -> list[dict]:
+    """Build a unified, newest-first feed of who-did-what across notes and KR value updates.
+
+    Inputs are expected to already be filtered to what the current user is allowed to view
+    (the caller in app.py applies role-based category filtering before passing them in).
+
+    KR value-update rows in KPI History have no author; we join on (kr_id, timestamp) to
+    the Notes sheet to recover the author when the user left a companion note. The Flask
+    update flow writes both with the same timestamp.
+    """
+    okr_lookup = {}
+    if not okrs_df.empty:
+        for _, r in okrs_df.iterrows():
+            okr_lookup[str(r["id"])] = {
+                "title": str(r.get("title", "") or ""),
+                "category": str(r.get("category", "") or ""),
+            }
+    kr_lookup = {}
+    if not kpis_df.empty:
+        for _, r in kpis_df.iterrows():
+            kr_lookup[str(r["id"])] = {
+                "name": str(r.get("name", "") or ""),
+                "unit": str(r.get("unit", "") or ""),
+                "okr_id": str(r.get("okr_id", "") or ""),
+            }
+
+    # Author lookup for KR updates: (kr_id, timestamp) -> author
+    note_authors: dict[tuple[str, str], str] = {}
+    if not notes_df.empty:
+        for _, n in notes_df.iterrows():
+            if str(n.get("parent_type", "")) == "KR":
+                note_authors[(str(n["parent_id"]), str(n["timestamp"]))] = str(
+                    n.get("author", "") or ""
+                )
+
+    activities: list[dict] = []
+
+    if not notes_df.empty:
+        for _, n in notes_df.iterrows():
+            ptype = str(n.get("parent_type", ""))
+            pid = str(n.get("parent_id", ""))
+            if ptype == "KR":
+                kr = kr_lookup.get(pid)
+                if kr is None:
+                    # Note refers to a KR not visible to this user — skip.
+                    continue
+                target_name = kr["name"] or f"KR {pid}"
+                target_label = "Key Result"
+            elif ptype == "OKR":
+                okr = okr_lookup.get(pid)
+                if okr is None:
+                    continue
+                target_name = okr["title"] or f"OKR {pid}"
+                target_label = "Objective"
+            else:
+                continue
+            ts = str(n.get("timestamp", ""))
+            parsed = n.get("_parsed_ts") if "_parsed_ts" in notes_df.columns else None
+            activities.append({
+                "timestamp": ts,
+                "_sort": _ts_sort_key(ts, parsed),
+                "author": str(n.get("author", "") or "") or "—",
+                "verb": "noted on",
+                "target_label": target_label,
+                "target_name": target_name,
+                "detail": str(n.get("text", "") or ""),
+            })
+
+    if not history_df.empty:
+        for _, h in history_df.iterrows():
+            kr_id = str(h.get("kpi_id", ""))
+            kr = kr_lookup.get(kr_id)
+            if kr is None:
+                continue
+            ts = str(h.get("date", ""))
+            parsed = h.get("_parsed_date") if "_parsed_date" in history_df.columns else None
+            author = note_authors.get((kr_id, ts), "—")
+            activities.append({
+                "timestamp": ts,
+                "_sort": _ts_sort_key(ts, parsed),
+                "author": author or "—",
+                "verb": "updated",
+                "target_label": "Key Result",
+                "target_name": kr["name"] or f"KR {kr_id}",
+                "detail": f"value → {format_value(h.get('value', 0), kr['unit'])}",
+            })
+
+    activities.sort(key=lambda a: a["_sort"], reverse=True)
+    for a in activities:
+        a.pop("_sort", None)
+    return activities[:limit]
+
+
 PREFIX_UNITS = {"$", "£", "€", "¥", "₹", "₩", "R$", "CHF"}
 
 CATEGORY_COLORS = {
