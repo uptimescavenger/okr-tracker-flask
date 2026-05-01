@@ -377,7 +377,8 @@ def api_update_kr():
     d = request.json
     quarter = d.get("quarter", config.current_quarter())
     now = datetime.now().strftime("%m/%d/%Y %H:%M")
-    sheets.update_kpi_value(quarter, d["id"], d["okr_id"], float(d["value"]), now)
+    author = auth.user_display_name()
+    sheets.update_kpi_value(quarter, d["id"], d["okr_id"], float(d["value"]), now, author)
     return jsonify({"ok": True})
 
 

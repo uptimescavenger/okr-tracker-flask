@@ -76,7 +76,7 @@ KPI_COLUMNS = [
     "description",
 ]
 
-KPI_HISTORY_COLUMNS = ["kpi_id", "date", "value"]
+KPI_HISTORY_COLUMNS = ["kpi_id", "date", "value", "author"]
 
 NOTES_COLUMNS = ["parent_type", "parent_id", "timestamp", "author", "text"]
 

@@ -94,6 +94,7 @@ def _get_or_create_worksheet(
     ss = _get_spreadsheet()
     try:
         ws = ss.worksheet(tab_name)
+        _ensure_headers(ws, headers)
     except gspread.WorksheetNotFound:
         ws = ss.add_worksheet(title=tab_name, rows=rows, cols=cols)
         ws.append_row(headers, value_input_option="RAW")
@@ -101,6 +102,23 @@ def _get_or_create_worksheet(
     with _ws_cache_lock:
         _ws_cache[tab_name] = ws
     return ws
+
+
+def _ensure_headers(ws: gspread.Worksheet, headers: list[str]) -> None:
+    """Additive header migration: append any expected header cells that are missing.
+
+    Existing columns are never reordered or renamed — we only append new headers
+    at the end. Safe for schema additions like adding `author` to KPI History.
+    """
+    existing = ws.row_values(1)
+    if not existing:
+        ws.append_row(headers, value_input_option="RAW")
+        return
+    missing = [h for h in headers if h not in existing]
+    if not missing:
+        return
+    new_headers = list(existing) + missing
+    ws.update("A1", [new_headers], value_input_option="RAW")
 
 
 # ---------- Read ----------
@@ -221,7 +239,10 @@ def _sync_okr_progress(quarter: str, okr_id: str, kpis_df, updated_at: str):
     ws.update(f"A{cell.row}", [row_values], value_input_option="USER_ENTERED")
 
 
-def update_kpi_value(quarter: str, kpi_id: str, okr_id: str, value: float, updated_at: str):
+def update_kpi_value(
+    quarter: str, kpi_id: str, okr_id: str, value: float,
+    updated_at: str, author: str = "",
+):
     ws = _get_or_create_worksheet(config.kpi_tab_name(quarter), config.KPI_COLUMNS)
     cell = ws.find(str(kpi_id), in_column=1)
     if cell is None:
@@ -233,10 +254,13 @@ def update_kpi_value(quarter: str, kpi_id: str, okr_id: str, value: float, updat
     row_values[config.KPI_COLUMNS.index("last_updated")] = updated_at
     ws.update(f"A{cell.row}", [row_values], value_input_option="USER_ENTERED")
 
-    # Append history
+    # Append history (with author when provided)
     history_tab = f"KPI History {quarter}"
     hws = _get_or_create_worksheet(history_tab, config.KPI_HISTORY_COLUMNS)
-    hws.append_row([kpi_id, updated_at, value], value_input_option="USER_ENTERED")
+    hws.append_row(
+        [kpi_id, updated_at, value, author],
+        value_input_option="USER_ENTERED",
+    )
 
     # Re-read KPIs and sync OKR progress — single cache clear at end
     clear_cache()

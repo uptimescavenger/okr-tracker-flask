@@ -209,6 +209,7 @@ def recent_activity(
             })
 
     if not history_df.empty:
+        has_author_col = "author" in history_df.columns
         for _, h in history_df.iterrows():
             kr_id = str(h.get("kpi_id", ""))
             kr = kr_lookup.get(kr_id)
@@ -216,7 +217,15 @@ def recent_activity(
                 continue
             ts = str(h.get("date", ""))
             parsed = h.get("_parsed_date") if "_parsed_date" in history_df.columns else None
-            author = note_authors.get((kr_id, ts), "—")
+            # Prefer the history row's own author; fall back to a companion note
+            # at the same timestamp; finally em-dash for legacy rows with neither.
+            author = ""
+            if has_author_col:
+                author = str(h.get("author", "") or "").strip()
+            if not author:
+                author = note_authors.get((kr_id, ts), "")
+            if not author:
+                author = "—"
             activities.append({
                 "timestamp": ts,
                 "_sort": _ts_sort_key(ts, parsed),
