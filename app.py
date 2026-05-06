@@ -343,7 +343,7 @@ def api_add_kr():
     now = datetime.now().strftime("%m/%d/%Y %H:%M")
     row = [
         kr_id, d.get("okr_id", ""), d.get("name", ""),
-        d.get("owner", ""), 0, d.get("target_value", 0),
+        d.get("owner", ""), d.get("baseline_value", 0), d.get("target_value", 0),
         d.get("baseline_value", 0), d.get("direction", "increase"),
         d.get("unit", ""), now, d.get("description", ""),
     ]
