@@ -1342,6 +1342,23 @@ a:hover { text-decoration: underline; }
   padding: 2px 8px;
   border-radius: 999px;
 }
+.btn-read-all {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-read-all:hover {
+  background: var(--primary-bg);
+  color: var(--primary);
+  border-color: var(--primary);
+}
 .activity-drawer-close {
   background: transparent;
   border: none;

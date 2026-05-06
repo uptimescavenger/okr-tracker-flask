@@ -575,12 +575,30 @@ function toggleActivityDrawer() {
   setActivityDrawer(!drawer.classList.contains('open'));
 }
 
+function markActivityRead() {
+  const badge = document.querySelector('.activity-toggle-count');
+  const currentCount = badge ? parseInt(badge.textContent || '0', 10) : 0;
+  try { localStorage.setItem('okr_activity_read_count', String(currentCount)); } catch (e) {}
+  if (badge) badge.style.display = 'none';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   if (!document.getElementById('activityDrawer')) return;
+
+  // Restore drawer open/close state
   let open = true;
   try {
     const stored = localStorage.getItem('okr_activity_open');
     if (stored === '0') open = false;
   } catch (e) {}
   setActivityDrawer(open);
+
+  // Hide badge if count hasn't grown since user last clicked "Read all"
+  try {
+    const readCount = parseInt(localStorage.getItem('okr_activity_read_count') || '-1', 10);
+    const badge = document.querySelector('.activity-toggle-count');
+    if (badge && readCount >= parseInt(badge.textContent || '0', 10)) {
+      badge.style.display = 'none';
+    }
+  } catch (e) {}
 });
