@@ -328,7 +328,7 @@ function submitEditOkr() {
       showToast('Objective updated', 'success');
       closeModal('editOkrModal');
       showLoading('Reloading...');
-      setTimeout(() => location.reload(), 500);
+      setTimeout(() => location.reload(), 100);
     }
   });
 }
@@ -349,7 +349,7 @@ function submitMoveOkr() {
       showToast('Objective moved', 'success');
       closeModal('moveOkrModal');
       showLoading('Reloading...');
-      setTimeout(() => location.reload(), 500);
+      setTimeout(() => location.reload(), 100);
     }
   });
 }
@@ -361,7 +361,7 @@ function deleteOkr(okrId, quarter, category) {
         if (r.ok) {
           showToast('Objective deleted', 'success');
           showLoading('Reloading...');
-          setTimeout(() => location.reload(), 500);
+          setTimeout(() => location.reload(), 100);
         }
       });
   });
@@ -405,7 +405,7 @@ function submitAddKr() {
       closeModal('addKrModal');
       showLoading('Reloading...');
       // Stay on same OKR tab (hash is already set from switchOkrTab)
-      setTimeout(() => location.reload(), 500);
+      setTimeout(() => location.reload(), 100);
     }
   });
 }
@@ -446,7 +446,7 @@ function submitEditKr() {
       showToast('Key Result updated', 'success');
       closeModal('editKrModal');
       showLoading('Reloading...');
-      setTimeout(() => location.reload(), 500);
+      setTimeout(() => location.reload(), 100);
     }
   });
 }
@@ -487,12 +487,12 @@ function submitUpdateKr() {
         }, 'Saving note...').then(() => {
           showToast('Value and note saved', 'success');
           showLoading('Reloading...');
-          setTimeout(() => location.reload(), 500);
+          setTimeout(() => location.reload(), 100);
         });
       } else {
         showToast('Value updated', 'success');
         showLoading('Reloading...');
-        setTimeout(() => location.reload(), 500);
+        setTimeout(() => location.reload(), 100);
       }
     }
   });
@@ -505,7 +505,7 @@ function deleteKr(krId, okrId, quarter, category) {
         if (r.ok) {
           showToast('Key Result deleted', 'success');
           showLoading('Reloading...');
-          setTimeout(() => location.reload(), 500);
+          setTimeout(() => location.reload(), 100);
         }
       });
   });
