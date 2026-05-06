@@ -263,9 +263,10 @@ def format_value(value, unit: str) -> str:
         value = int(round(float(value)))
     except (ValueError, TypeError):
         value = 0
+    formatted = f"{value:,}"
     if unit in PREFIX_UNITS:
-        return f"{unit}{value}"
-    return f"{value} {unit}".strip()
+        return f"{unit}{formatted}"
+    return f"{formatted} {unit}".strip()
 
 
 def progress_color(pct: float) -> str:
