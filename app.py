@@ -413,6 +413,50 @@ def api_edit_note():
     return jsonify({"ok": True})
 
 
+# ---------- One-time migration (remove after use) ----------
+
+@app.route("/admin/migrate-baseline")
+@login_required
+@admin_required
+def migrate_baseline_to_current():
+    """Set current_value = baseline_value for KRs where current=0 and baseline>0."""
+    results = []
+    total_updated = 0
+    for quarter in config.quarter_list():
+        tab_name = config.kpi_tab_name(quarter)
+        try:
+            ws = sheets._get_or_create_worksheet(tab_name, config.KPI_COLUMNS)
+            all_values = ws.get_all_values()
+        except Exception:
+            continue
+        if len(all_values) < 2:
+            continue
+        headers = all_values[0]
+        try:
+            id_col       = headers.index("id")
+            name_col     = headers.index("name")
+            current_col  = headers.index("current_value")
+            baseline_col = headers.index("baseline_value")
+        except ValueError:
+            continue
+        for row_idx, row in enumerate(all_values[1:], start=2):
+            while len(row) <= max(current_col, baseline_col):
+                row.append("")
+            try:
+                current  = float(row[current_col])  if row[current_col]  else 0.0
+                baseline = float(row[baseline_col]) if row[baseline_col] else 0.0
+            except ValueError:
+                continue
+            if current == 0 and baseline > 0:
+                cell = f"{chr(65 + current_col)}{row_idx}"
+                ws.update(cell, [[baseline]], value_input_option="USER_ENTERED")
+                results.append(f"[{quarter}] {row[name_col]} (id={row[id_col]}): current → {int(baseline)}")
+                total_updated += 1
+    sheets.clear_cache()
+    summary = f"<h2>Migration complete — {total_updated} KR(s) updated</h2><pre>" + "\n".join(results) + "</pre>"
+    return summary if results else "<h2>Migration complete — no KRs needed updating</h2>"
+
+
 # ---------- Admin panel ----------
 
 @app.route("/admin")
