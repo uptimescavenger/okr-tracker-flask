@@ -259,21 +259,8 @@
           <div class="kr-actions">
             {% if auth.can_update_kr() %}
             <button class="btn btn-primary btn-action-lg" onclick='openUpdateKrModal({{ kr|tojson }})'>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              Update
-            </button>
-            {% endif %}
-            {% if auth.can_edit_kr() %}
-            <button class="btn btn-secondary btn-sm" onclick='openEditKrModal({{ kr|tojson }})'>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-              Edit
-            </button>
-            {% endif %}
-            {% if auth.can_delete_kr(okr.category) %}
-            <button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:#fecaca;"
-                    onclick="deleteKr('{{ kr.id }}', '{{ kr.okr_id }}', '{{ quarter }}', '{{ okr.category }}')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              Delete
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              Submit Update
             </button>
             {% endif %}
           </div>
@@ -303,6 +290,24 @@
               {% endfor %}
             </div>
           </div>
+
+          {% if auth.can_edit_kr() or auth.can_delete_kr(okr.category) %}
+          <div class="kr-secondary-actions">
+            {% if auth.can_edit_kr() %}
+            <button class="btn btn-secondary btn-action-sm" onclick='openEditKrModal({{ kr|tojson }})'>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+              Edit
+            </button>
+            {% endif %}
+            {% if auth.can_delete_kr(okr.category) %}
+            <button class="btn btn-secondary btn-action-sm" style="color:var(--danger);border-color:#fecaca;"
+                    onclick="deleteKr('{{ kr.id }}', '{{ kr.okr_id }}', '{{ quarter }}', '{{ okr.category }}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Delete
+            </button>
+            {% endif %}
+          </div>
+          {% endif %}
         </div>
         {% endfor %}
 

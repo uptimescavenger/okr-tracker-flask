@@ -251,7 +251,7 @@ a:hover { text-decoration: underline; }
 }
 
 /* Primary-action buttons that should stand out (1.5x of btn-sm).
-   Use on top-level CRUD entry points: + Add Objective, + Key Result, Update. */
+   Use on top-level CRUD entry points: + Add Objective, + Key Result, Submit Update. */
 .btn-action-lg {
   padding: 6px 18px;
   font-size: 1.08rem;
@@ -260,6 +260,18 @@ a:hover { text-decoration: underline; }
 .btn-action-lg svg {
   width: 18px;
   height: 18px;
+}
+
+/* Secondary-action buttons that should fade into the background (75% of btn-sm).
+   Use on demoted CRUD: Edit / Delete on each KR card. */
+.btn-action-sm {
+  padding: 3px 9px;
+  font-size: 0.6rem;
+  gap: 4px;
+}
+.btn-action-sm svg {
+  width: 10px;
+  height: 10px;
 }
 
 .btn-block { width: 100%; justify-content: center; }
@@ -610,6 +622,17 @@ a:hover { text-decoration: underline; }
   display: flex;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* Secondary action row — sits below the Notes section of each KR card.
+   Right-aligned, subtly separated from the notes block above. */
+.kr-secondary-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 10px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border-default);
 }
 
 /* -- Progress bars -- */
