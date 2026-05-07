@@ -21,12 +21,24 @@ function hideLoading() {
 
 async function apiPost(url, data, loadingMsg) {
   showLoading(loadingMsg || 'Saving...');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000); // 30s hard timeout
   try {
     const resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
+    // If the server returned HTML (e.g. session expired → login redirect), handle gracefully
+    const ct = resp.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      hideLoading();
+      showToast('Session expired — redirecting to login...', 'error');
+      setTimeout(() => { window.location.href = '/login'; }, 1500);
+      return { ok: false };
+    }
     const result = await resp.json();
     hideLoading();
     if (!result.ok && result.error) {
@@ -34,8 +46,13 @@ async function apiPost(url, data, loadingMsg) {
     }
     return result;
   } catch (e) {
+    clearTimeout(timeout);
     hideLoading();
-    showToast('Network error: ' + e.message, 'error');
+    if (e.name === 'AbortError') {
+      showToast('Request timed out — please try again.', 'error');
+    } else {
+      showToast('Network error — please try again.', 'error');
+    }
     return { ok: false, error: e.message };
   }
 }
