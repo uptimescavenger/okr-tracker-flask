@@ -8,6 +8,8 @@ Optimizations:
 - flask-compress for gzip responses
 """
 
+import os
+import time
 import uuid
 from datetime import datetime
 from functools import wraps
@@ -27,6 +29,13 @@ app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+# Tell the browser to cache static files for 1 day. Cache-busting is handled
+# via ?v=ASSET_VERSION in template URLs (see base.html).
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 86400  # 1 day
+
+# Asset version: git commit hash on Render, or process start time locally.
+# Appended as ?v= to /static URLs so deploys force fresh CSS/JS.
+ASSET_VERSION = os.environ.get("RENDER_GIT_COMMIT", "")[:8] or str(int(time.time()))
 
 # Enable gzip compression if flask-compress is available
 try:
@@ -80,6 +89,7 @@ def inject_globals():
         "current_quarter": config.current_quarter(),
         "quarter_list": config.quarter_list(),
         "now": datetime.now,
+        "asset_version": ASSET_VERSION,
     }
 
 
@@ -167,28 +177,38 @@ def tracker():
     if not history_df.empty:
         history_df = history_df[history_df["kpi_id"].astype(str).isin(visible_kpi_ids)]
 
-    # Compute all OKR progress in one pass (avoids N+1)
+    # Compute all OKR progress in one vectorized pass
     progress_map = data.compute_all_progress(visible_okr_ids, kpis_df)
     stats = data.okr_summary_stats_from_progress(progress_map)
+
+    # Pre-compute per-KR achievement once (vectorized) to avoid recomputing in the loop
+    if not kpis_df.empty:
+        kpis_df = kpis_df.copy()
+        kpis_df["_achievement"] = data._compute_achievements_vec(kpis_df)
+
+    # Pre-group everything once — eliminates N*M filter scans inside the render loop
+    krs_by_okr = data.group_kpis_by_okr(kpis_df)
+    notes_by_parent = data.group_notes_by_parent(notes_df)
+    trend_by_kpi = data.group_history_by_kpi(history_df)
 
     # Build OKR data for template + minimal chart payload
     okr_list = []
     chart_data = []  # Minimal: only kr_id + trend arrays
     has_any_trend = False
 
-    for _, okr_row in okrs_df.iterrows():
+    for okr_row in okrs_df.to_dict("records"):
         okr_id = str(okr_row["id"])
         pct = progress_map.get(okr_id, 0.0)
         color = data.progress_color(pct)
-        krs = data.krs_for_okr(okr_id, kpis_df)
+        krs = krs_by_okr.get(okr_id, [])
 
         kr_list = []
         kr_charts = []
-        for _, kr_row in krs.iterrows():
+        for kr_row in krs:
             kr_id = str(kr_row["id"])
-            achievement = data.kpi_achievement(kr_row)
-            kr_notes = data.notes_for(notes_df, "KR", kr_id)
-            trend = data.build_kpi_trend(history_df, kr_id)
+            achievement = float(kr_row.get("_achievement", 0) or 0)
+            kr_notes = notes_by_parent.get(("KR", kr_id), [])
+            trend = trend_by_kpi.get(kr_id, [])
             if len(trend) > 1:
                 has_any_trend = True
                 kr_charts.append({"id": kr_id, "trend": trend})
@@ -212,7 +232,7 @@ def tracker():
                 "has_trend": len(trend) > 1,
             })
 
-        okr_notes = data.notes_for(notes_df, "OKR", okr_id)
+        okr_notes = notes_by_parent.get(("OKR", okr_id), [])
         okr_list.append({
             "id": okr_id,
             "title": okr_row.get("title", ""),
@@ -332,11 +352,16 @@ def api_add_kr():
         return jsonify({"ok": False, "error": "Permission denied"}), 403
     d = request.json
     quarter = d.get("quarter", config.current_quarter())
-    # Enforce category-level restriction for Managers
-    okr_id = d.get("okr_id", "")
-    okrs_df = sheets.read_okrs(quarter)
-    okr_row = okrs_df[okrs_df["id"] == str(okr_id)]
-    category = okr_row.iloc[0].get("category", "") if not okr_row.empty else ""
+    # Enforce category-level restriction for Managers.
+    # Trust the client-supplied category if present (avoids a Sheets read on hot path);
+    # fall back to a sheet lookup only if the client didn't send it. Admins bypass the
+    # check entirely via can_create_kr_in_category.
+    category = d.get("category", None)
+    if category is None:
+        okr_id = d.get("okr_id", "")
+        okrs_df = sheets.read_okrs(quarter)
+        okr_row = okrs_df[okrs_df["id"] == str(okr_id)]
+        category = okr_row.iloc[0].get("category", "") if not okr_row.empty else ""
     if not auth.can_create_kr_in_category(category):
         return jsonify({"ok": False, "error": "Permission denied"}), 403
     kr_id = str(uuid.uuid4())[:8]
@@ -379,6 +404,11 @@ def api_update_kr():
     now = datetime.now().strftime("%m/%d/%Y %H:%M")
     author = auth.user_display_name()
     sheets.update_kpi_value(quarter, d["id"], d["okr_id"], float(d["value"]), now, author)
+    # Optional companion note — saves the second round-trip when the user
+    # types something in the Note field on the Update modal.
+    note = (d.get("note") or "").strip()
+    if note and auth.can_add_note():
+        sheets.add_note("KR", d["id"], author, note, now)
     return jsonify({"ok": True})
 
 

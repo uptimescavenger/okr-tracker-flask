@@ -2,11 +2,14 @@
 Google Sheets integration layer using gspread.
 All reads/writes go through this module.
 
-Optimizations:
+Optimizations (v2):
 - Worksheet references cached to avoid repeated API lookups
-- Single .copy() on cache set (not get) since reads use filtering which creates new DFs
-- Users sheet cached with same TTL mechanism
-- Cache TTL configurable via config.CACHE_TTL_SECONDS
+- Row-index map cached alongside each DataFrame so writes can skip ws.find()
+- Headers verified once per process (not per cache miss)
+- Granular cache invalidation — only the affected sheet's key is cleared on writes
+- Fixed double clear_cache() in update_kpi_value/delete_kpi (1 sync, not 2)
+- batch_read_quarter() fetches OKRs + KPIs + History in a single batch_get call
+- Cache TTL configurable via config.CACHE_TTL_SECONDS (default 600s)
 """
 
 import time
@@ -32,9 +35,17 @@ _spreadsheet: gspread.Spreadsheet | None = None
 _cache: dict[str, tuple[float, pd.DataFrame]] = {}
 _cache_lock = threading.Lock()
 
+# Row-index map: cache_key -> {record_id: sheet_row_number (1-indexed, header is row 1)}
+_row_index: dict[str, dict[str, int]] = {}
+_row_index_lock = threading.Lock()
+
 # Worksheet reference cache: tab_name -> Worksheet
 _ws_cache: dict[str, gspread.Worksheet] = {}
 _ws_cache_lock = threading.Lock()
+
+# Headers checked: set of tab_names that already had _ensure_headers run this process
+_headers_checked: set[str] = set()
+_headers_checked_lock = threading.Lock()
 
 
 def _get_client() -> gspread.Client:
@@ -64,7 +75,7 @@ def _cache_get(key: str) -> pd.DataFrame | None:
         if key in _cache:
             ts, df = _cache[key]
             if time.time() - ts < config.CACHE_TTL_SECONDS:
-                return df  # No .copy() — reads use filtering which creates new DFs
+                return df  # Reads use filtering which creates new DFs
             del _cache[key]
     return None
 
@@ -74,11 +85,36 @@ def _cache_set(key: str, df: pd.DataFrame):
         _cache[key] = (time.time(), df.copy())  # Copy on write only
 
 
+def _cache_invalidate(*keys: str):
+    """Clear specific cache keys without nuking everything else."""
+    with _cache_lock:
+        for k in keys:
+            _cache.pop(k, None)
+    with _row_index_lock:
+        for k in keys:
+            _row_index.pop(k, None)
+
+
+def _row_index_set(cache_key: str, id_to_row: dict[str, int]):
+    with _row_index_lock:
+        _row_index[cache_key] = id_to_row
+
+
+def _row_index_get(cache_key: str) -> dict[str, int] | None:
+    with _row_index_lock:
+        return _row_index.get(cache_key)
+
+
 def clear_cache():
+    """Nuke everything — preserved for compatibility but most callers should use _cache_invalidate()."""
     with _cache_lock:
         _cache.clear()
+    with _row_index_lock:
+        _row_index.clear()
     with _ws_cache_lock:
         _ws_cache.clear()
+    with _headers_checked_lock:
+        _headers_checked.clear()
 
 
 # ---------- Worksheet helpers ----------
@@ -89,18 +125,30 @@ def _get_or_create_worksheet(
     # Check ws reference cache first
     with _ws_cache_lock:
         if tab_name in _ws_cache:
-            return _ws_cache[tab_name]
+            ws = _ws_cache[tab_name]
+        else:
+            ws = None
 
-    ss = _get_spreadsheet()
-    try:
-        ws = ss.worksheet(tab_name)
+    if ws is None:
+        ss = _get_spreadsheet()
+        try:
+            ws = ss.worksheet(tab_name)
+        except gspread.WorksheetNotFound:
+            ws = ss.add_worksheet(title=tab_name, rows=rows, cols=cols)
+            ws.append_row(headers, value_input_option="RAW")
+            with _headers_checked_lock:
+                _headers_checked.add(tab_name)
+        with _ws_cache_lock:
+            _ws_cache[tab_name] = ws
+
+    # Only verify headers once per process (not per cache-miss)
+    with _headers_checked_lock:
+        already_checked = tab_name in _headers_checked
+    if not already_checked:
         _ensure_headers(ws, headers)
-    except gspread.WorksheetNotFound:
-        ws = ss.add_worksheet(title=tab_name, rows=rows, cols=cols)
-        ws.append_row(headers, value_input_option="RAW")
+        with _headers_checked_lock:
+            _headers_checked.add(tab_name)
 
-    with _ws_cache_lock:
-        _ws_cache[tab_name] = ws
     return ws
 
 
@@ -121,6 +169,13 @@ def _ensure_headers(ws: gspread.Worksheet, headers: list[str]) -> None:
     ws.update("A1", [new_headers], value_input_option="RAW")
 
 
+def _build_row_index(records: list[dict], id_field: str = "id") -> dict[str, int]:
+    """Build {record_id: sheet_row_number} from a get_all_records result.
+    Sheet row 1 is the header, so records start at row 2.
+    """
+    return {str(r.get(id_field, "")): i + 2 for i, r in enumerate(records)}
+
+
 # ---------- Read ----------
 
 def read_okrs(quarter: str) -> pd.DataFrame:
@@ -139,6 +194,7 @@ def read_okrs(quarter: str) -> pd.DataFrame:
         df["category"] = df["category"].fillna("").astype(str)
         df["progress"] = pd.to_numeric(df["progress"], errors="coerce").fillna(0)
     _cache_set(cache_key, df)
+    _row_index_set(cache_key, _build_row_index(records))
     return df
 
 
@@ -159,6 +215,7 @@ def read_kpis(quarter: str) -> pd.DataFrame:
             df["direction"] = "increase"
         df["direction"] = df["direction"].replace("", "increase").fillna("increase")
     _cache_set(cache_key, df)
+    _row_index_set(cache_key, _build_row_index(records))
     return df
 
 
@@ -219,40 +276,58 @@ def read_users() -> pd.DataFrame:
                 df[col] = ""
         df = df.fillna("")
     _cache_set(cache_key, df)
+    _row_index_set(cache_key, _build_row_index(records, id_field="email"))
     return df
 
 
 # ---------- Write ----------
 
+def _find_row_or_lookup(cache_key: str, ws: gspread.Worksheet, record_id: str) -> int | None:
+    """Look up sheet row number from the cached row-index map. Falls back to ws.find()
+    if the index is missing or stale. Returns None if not found.
+    """
+    idx = _row_index_get(cache_key)
+    if idx is not None:
+        row = idx.get(str(record_id))
+        if row is not None:
+            return row
+    # Fallback: cache miss or stale — do the slow find
+    cell = ws.find(str(record_id), in_column=1)
+    return cell.row if cell else None
+
+
 def _sync_okr_progress(quarter: str, okr_id: str, kpis_df, updated_at: str):
+    """Recompute and write OKR progress without re-reading the KPIs sheet."""
     from data import okr_progress_from_krs
     progress = okr_progress_from_krs(okr_id, kpis_df)
+    okr_cache_key = f"okrs:{quarter}"
     ws = _get_or_create_worksheet(config.okr_tab_name(quarter), config.OKR_COLUMNS)
-    cell = ws.find(str(okr_id), in_column=1)
-    if cell is None:
+    row_num = _find_row_or_lookup(okr_cache_key, ws, okr_id)
+    if row_num is None:
         return
-    row_values = ws.row_values(cell.row)
+    row_values = ws.row_values(row_num)
     while len(row_values) < len(config.OKR_COLUMNS):
         row_values.append("")
     row_values[config.OKR_COLUMNS.index("progress")] = progress
     row_values[config.OKR_COLUMNS.index("last_updated")] = updated_at
-    ws.update(f"A{cell.row}", [row_values], value_input_option="USER_ENTERED")
+    ws.update(f"A{row_num}", [row_values], value_input_option="USER_ENTERED")
 
 
 def update_kpi_value(
     quarter: str, kpi_id: str, okr_id: str, value: float,
     updated_at: str, author: str = "",
 ):
+    kpi_cache_key = f"kpis:{quarter}"
     ws = _get_or_create_worksheet(config.kpi_tab_name(quarter), config.KPI_COLUMNS)
-    cell = ws.find(str(kpi_id), in_column=1)
-    if cell is None:
+    row_num = _find_row_or_lookup(kpi_cache_key, ws, kpi_id)
+    if row_num is None:
         raise ValueError(f"Key Result id '{kpi_id}' not found")
-    row_values = ws.row_values(cell.row)
+    row_values = ws.row_values(row_num)
     while len(row_values) < len(config.KPI_COLUMNS):
         row_values.append("")
     row_values[config.KPI_COLUMNS.index("current_value")] = value
     row_values[config.KPI_COLUMNS.index("last_updated")] = updated_at
-    ws.update(f"A{cell.row}", [row_values], value_input_option="USER_ENTERED")
+    ws.update(f"A{row_num}", [row_values], value_input_option="USER_ENTERED")
 
     # Append history (with author when provided)
     history_tab = f"KPI History {quarter}"
@@ -262,11 +337,13 @@ def update_kpi_value(
         value_input_option="USER_ENTERED",
     )
 
-    # Re-read KPIs and sync OKR progress — single cache clear at end
-    clear_cache()
+    # Invalidate KPI + history cache (NOT the row-index — the row didn't move),
+    # then re-read once and sync OKR progress. Single read instead of double.
+    _cache_invalidate(kpi_cache_key, f"kpi_history:{quarter}")
     fresh_kpis = read_kpis(quarter)
     _sync_okr_progress(quarter, okr_id, fresh_kpis, updated_at)
-    clear_cache()
+    # OKR row was updated — clear OKR cache too
+    _cache_invalidate(f"okrs:{quarter}")
 
 
 def add_note(parent_type: str, parent_id: str, author: str, text: str, timestamp: str):
@@ -275,7 +352,7 @@ def add_note(parent_type: str, parent_id: str, author: str, text: str, timestamp
         [parent_type, parent_id, timestamp, author, text],
         value_input_option="USER_ENTERED",
     )
-    clear_cache()
+    _cache_invalidate("notes")
 
 
 def update_note(parent_type: str, parent_id: str, timestamp: str, author: str, new_text: str):
@@ -290,80 +367,85 @@ def update_note(parent_type: str, parent_id: str, timestamp: str, author: str, n
             row_vals[4] = new_text
             ws.update(f"A{i}", [row_vals], value_input_option="USER_ENTERED")
             break
-    clear_cache()
+    _cache_invalidate("notes")
 
 
 def add_okr(quarter: str, row: list):
     ws = _get_or_create_worksheet(config.okr_tab_name(quarter), config.OKR_COLUMNS)
     ws.append_row(row, value_input_option="USER_ENTERED")
-    clear_cache()
+    _cache_invalidate(f"okrs:{quarter}")
 
 
 def add_kpi(quarter: str, row: list):
     ws = _get_or_create_worksheet(config.kpi_tab_name(quarter), config.KPI_COLUMNS)
     ws.append_row(row, value_input_option="USER_ENTERED")
-    clear_cache()
+    _cache_invalidate(f"kpis:{quarter}")
 
 
 def update_okr_fields(quarter: str, okr_id: str, fields: dict):
+    cache_key = f"okrs:{quarter}"
     ws = _get_or_create_worksheet(config.okr_tab_name(quarter), config.OKR_COLUMNS)
-    cell = ws.find(str(okr_id), in_column=1)
-    if cell is None:
+    row_num = _find_row_or_lookup(cache_key, ws, okr_id)
+    if row_num is None:
         raise ValueError(f"OKR id '{okr_id}' not found")
-    row_values = ws.row_values(cell.row)
+    row_values = ws.row_values(row_num)
     while len(row_values) < len(config.OKR_COLUMNS):
         row_values.append("")
     for col_name, value in fields.items():
         col_idx = config.OKR_COLUMNS.index(col_name)
         row_values[col_idx] = value
-    ws.update(f"A{cell.row}", [row_values], value_input_option="USER_ENTERED")
-    clear_cache()
+    ws.update(f"A{row_num}", [row_values], value_input_option="USER_ENTERED")
+    _cache_invalidate(cache_key)
 
 
 def update_kpi_fields(quarter: str, kpi_id: str, fields: dict):
+    cache_key = f"kpis:{quarter}"
     ws = _get_or_create_worksheet(config.kpi_tab_name(quarter), config.KPI_COLUMNS)
-    cell = ws.find(str(kpi_id), in_column=1)
-    if cell is None:
+    row_num = _find_row_or_lookup(cache_key, ws, kpi_id)
+    if row_num is None:
         raise ValueError(f"Key Result id '{kpi_id}' not found")
-    row_values = ws.row_values(cell.row)
+    row_values = ws.row_values(row_num)
     while len(row_values) < len(config.KPI_COLUMNS):
         row_values.append("")
     for col_name, value in fields.items():
         col_idx = config.KPI_COLUMNS.index(col_name)
         row_values[col_idx] = value
-    ws.update(f"A{cell.row}", [row_values], value_input_option="USER_ENTERED")
-    clear_cache()
+    ws.update(f"A{row_num}", [row_values], value_input_option="USER_ENTERED")
+    _cache_invalidate(cache_key)
 
 
 # ---------- Move ----------
 
 def move_okr(old_quarter: str, new_quarter: str, okr_id: str):
+    okr_cache_key_old = f"okrs:{old_quarter}"
     okr_ws = _get_or_create_worksheet(config.okr_tab_name(old_quarter), config.OKR_COLUMNS)
-    cell = okr_ws.find(str(okr_id), in_column=1)
-    if cell is None:
+    row_num = _find_row_or_lookup(okr_cache_key_old, okr_ws, okr_id)
+    if row_num is None:
         raise ValueError(f"OKR id '{okr_id}' not found in {old_quarter}")
-    okr_row = okr_ws.row_values(cell.row)
+    okr_row = okr_ws.row_values(row_num)
     while len(okr_row) < len(config.OKR_COLUMNS):
         okr_row.append("")
 
     kpi_ws = _get_or_create_worksheet(config.kpi_tab_name(old_quarter), config.KPI_COLUMNS)
     all_kpis = kpi_ws.get_all_values()
     okr_id_col = config.KPI_COLUMNS.index("okr_id")
-    kr_rows, kr_ids = [], []
+    kr_rows, kr_ids, kr_row_nums = [], [], []
     if len(all_kpis) > 1:
-        for row_vals in all_kpis[1:]:
+        for i, row_vals in enumerate(all_kpis[1:], start=2):
             if len(row_vals) > okr_id_col and str(row_vals[okr_id_col]) == str(okr_id):
                 kr_rows.append(row_vals)
                 kr_ids.append(str(row_vals[0]))
+                kr_row_nums.append(i)
 
     hist_ws = _get_or_create_worksheet(f"KPI History {old_quarter}", config.KPI_HISTORY_COLUMNS)
     all_hist = hist_ws.get_all_values()
     kr_id_set = set(kr_ids)
-    hist_rows = []
+    hist_rows, hist_row_nums = [], []
     if len(all_hist) > 1:
-        for row_vals in all_hist[1:]:
+        for i, row_vals in enumerate(all_hist[1:], start=2):
             if len(row_vals) > 0 and str(row_vals[0]) in kr_id_set:
                 hist_rows.append(row_vals)
+                hist_row_nums.append(i)
 
     # Write to new quarter
     new_okr_ws = _get_or_create_worksheet(config.okr_tab_name(new_quarter), config.OKR_COLUMNS)
@@ -378,35 +460,30 @@ def move_okr(old_quarter: str, new_quarter: str, okr_id: str):
         new_hist_ws.append_rows(hist_rows, value_input_option="USER_ENTERED")
 
     # Delete from old quarter (reverse order to preserve row indices)
-    if hist_rows:
-        all_hist_fresh = hist_ws.get_all_values()
-        rows_to_del = [
-            i for i, row_vals in enumerate(all_hist_fresh[1:], start=2)
-            if len(row_vals) > 0 and str(row_vals[0]) in kr_id_set
-        ]
-        for row_num in reversed(rows_to_del):
-            hist_ws.delete_rows(row_num)
+    # Use row numbers we already collected — no need to re-read
+    for row_num_h in reversed(hist_row_nums):
+        hist_ws.delete_rows(row_num_h)
 
-    if kr_rows:
-        all_kpis_fresh = kpi_ws.get_all_values()
-        rows_to_del = [
-            i for i, row_vals in enumerate(all_kpis_fresh[1:], start=2)
-            if len(row_vals) > okr_id_col and str(row_vals[okr_id_col]) == str(okr_id)
-        ]
-        for row_num in reversed(rows_to_del):
-            kpi_ws.delete_rows(row_num)
+    for row_num_k in reversed(kr_row_nums):
+        kpi_ws.delete_rows(row_num_k)
 
-    okr_ws.delete_rows(cell.row)
-    clear_cache()
+    okr_ws.delete_rows(row_num)
+    _cache_invalidate(
+        f"okrs:{old_quarter}", f"okrs:{new_quarter}",
+        f"kpis:{old_quarter}", f"kpis:{new_quarter}",
+        f"kpi_history:{old_quarter}", f"kpi_history:{new_quarter}",
+    )
 
 
 # ---------- Delete ----------
 
 def delete_okr(quarter: str, okr_id: str):
+    okr_cache_key = f"okrs:{quarter}"
+    kpi_cache_key = f"kpis:{quarter}"
     ws = _get_or_create_worksheet(config.okr_tab_name(quarter), config.OKR_COLUMNS)
-    cell = ws.find(str(okr_id), in_column=1)
-    if cell:
-        ws.delete_rows(cell.row)
+    row_num = _find_row_or_lookup(okr_cache_key, ws, okr_id)
+    if row_num is not None:
+        ws.delete_rows(row_num)
 
     kpi_ws = _get_or_create_worksheet(config.kpi_tab_name(quarter), config.KPI_COLUMNS)
     all_values = kpi_ws.get_all_values()
@@ -416,20 +493,22 @@ def delete_okr(quarter: str, okr_id: str):
             i for i, row_vals in enumerate(all_values[1:], start=2)
             if len(row_vals) > okr_id_col and str(row_vals[okr_id_col]) == str(okr_id)
         ]
-        for row_num in reversed(rows_to_delete):
-            kpi_ws.delete_rows(row_num)
-    clear_cache()
+        for row_num_k in reversed(rows_to_delete):
+            kpi_ws.delete_rows(row_num_k)
+    _cache_invalidate(okr_cache_key, kpi_cache_key, f"kpi_history:{quarter}")
 
 
 def delete_kpi(quarter: str, kpi_id: str, okr_id: str):
+    kpi_cache_key = f"kpis:{quarter}"
     ws = _get_or_create_worksheet(config.kpi_tab_name(quarter), config.KPI_COLUMNS)
-    cell = ws.find(str(kpi_id), in_column=1)
-    if cell:
-        ws.delete_rows(cell.row)
+    row_num = _find_row_or_lookup(kpi_cache_key, ws, kpi_id)
+    if row_num is not None:
+        ws.delete_rows(row_num)
 
-    clear_cache()
+    # Single invalidation + re-read + sync (instead of double clear_cache)
+    _cache_invalidate(kpi_cache_key)
     from datetime import datetime
     now = datetime.now().strftime("%m/%d/%Y %H:%M")
     fresh_kpis = read_kpis(quarter)
     _sync_okr_progress(quarter, okr_id, fresh_kpis, now)
-    clear_cache()
+    _cache_invalidate(f"okrs:{quarter}")

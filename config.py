@@ -5,6 +5,7 @@ Credentials loaded from environment variables (Render) or .env file (local dev).
 
 import os
 from datetime import date
+from functools import lru_cache
 
 # ---------- Google Sheets ----------
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "1JNgemdOvb8JstpGnlkxumT62qkK3wLyNNdDbTq6xTxo")
@@ -27,26 +28,42 @@ GCP_SERVICE_ACCOUNT = {
 SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "okr-tracker-dev-secret-change-me")
 
 # ---------- Quarter helpers ----------
-def current_quarter() -> str:
-    today = date.today()
-    q = (today.month - 1) // 3 + 1
-    return f"{today.year}-Q{q}"
+# Cached per-day so we recompute when the date rolls over without recomputing per-request.
+def _today_key() -> tuple:
+    t = date.today()
+    return (t.year, t.month, t.day)
 
 
-def quarter_list(start_year: int = 2024) -> list[str]:
-    today = date.today()
-    current_y, current_q = today.year, (today.month - 1) // 3 + 1
+@lru_cache(maxsize=4)
+def _current_quarter_for(today_key: tuple) -> str:
+    y, m, _ = today_key
+    q = (m - 1) // 3 + 1
+    return f"{y}-Q{q}"
+
+
+@lru_cache(maxsize=8)
+def _quarter_list_for(today_key: tuple, start_year: int) -> tuple:
+    y, m, _ = today_key
+    current_y, current_q = y, (m - 1) // 3 + 1
     if current_q < 4:
         next_y, next_q = current_y, current_q + 1
     else:
         next_y, next_q = current_y + 1, 1
     quarters = []
-    for y in range(start_year, next_y + 1):
-        for q in range(1, 5):
-            if y == next_y and q > next_q:
+    for yy in range(start_year, next_y + 1):
+        for qq in range(1, 5):
+            if yy == next_y and qq > next_q:
                 break
-            quarters.append(f"{y}-Q{q}")
-    return quarters
+            quarters.append(f"{yy}-Q{qq}")
+    return tuple(quarters)
+
+
+def current_quarter() -> str:
+    return _current_quarter_for(_today_key())
+
+
+def quarter_list(start_year: int = 2024) -> list[str]:
+    return list(_quarter_list_for(_today_key(), start_year))
 
 
 # ---------- Sheet tab naming ----------
@@ -91,4 +108,4 @@ SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "")
 
 # ---------- UI ----------
 PAGE_TITLE = "OKR Tracker"
-CACHE_TTL_SECONDS = 120
+CACHE_TTL_SECONDS = 600  # 10 minutes — manual Refresh button forces fresh data when needed

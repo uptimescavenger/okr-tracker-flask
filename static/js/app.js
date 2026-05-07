@@ -386,8 +386,9 @@ function deleteOkr(okrId, quarter, category) {
 
 // ---------- KR CRUD ----------
 
-function openAddKrModal(okrId) {
+function openAddKrModal(okrId, category) {
   document.getElementById('krOkrId').value = okrId;
+  document.getElementById('krOkrCategory').value = category || '';
   document.getElementById('krName').value = '';
   document.getElementById('krOwner').value = '';
   document.getElementById('krTarget').value = '';
@@ -409,6 +410,7 @@ function submitAddKr() {
   apiPost('/api/kr/add', {
     quarter: quarter,
     okr_id: document.getElementById('krOkrId').value,
+    category: document.getElementById('krOkrCategory').value || '',
     name: document.getElementById('krName').value,
     owner: document.getElementById('krOwner').value,
     target_value: Math.round(parseFloat(document.getElementById('krTarget').value) || 0),
@@ -488,29 +490,20 @@ function submitUpdateKr() {
   const krId = document.getElementById('updateKrId').value;
   const noteText = document.getElementById('updateKrNote').value.trim();
 
+  // Single combined call — the server saves the note alongside the value
+  // when a `note` field is included. No separate /api/note/add round-trip.
   apiPost('/api/kr/update', {
     quarter: quarter,
     id: krId,
     okr_id: document.getElementById('updateKrOkrId').value,
     value: Math.round(parseFloat(document.getElementById('updateKrValue').value) || 0),
-  }, 'Updating value...').then(r => {
+    note: noteText,
+  }, noteText ? 'Saving value and note...' : 'Updating value...').then(r => {
     if (r.ok) {
       closeModal('updateKrModal');
-      if (noteText) {
-        apiPost('/api/note/add', {
-          parent_type: 'KR',
-          parent_id: krId,
-          text: noteText,
-        }, 'Saving note...').then(() => {
-          showToast('Value and note saved', 'success');
-          showLoading('Reloading...');
-          setTimeout(() => location.reload(), 100);
-        });
-      } else {
-        showToast('Value updated', 'success');
-        showLoading('Reloading...');
-        setTimeout(() => location.reload(), 100);
-      }
+      showToast(noteText ? 'Value and note saved' : 'Value updated', 'success');
+      showLoading('Reloading...');
+      setTimeout(() => location.reload(), 100);
     }
   });
 }
