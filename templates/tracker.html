@@ -127,7 +127,7 @@
         {% endfor %}
       </div>
       {% if auth.can_create_okr() %}
-      <button class="btn btn-primary btn-sm" onclick="openAddOkrModal()" style="white-space:nowrap;margin-left:12px;">
+      <button class="btn btn-primary btn-action-lg" onclick="openAddOkrModal()" style="white-space:nowrap;margin-left:12px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Objective
       </button>
@@ -178,6 +178,12 @@
           {{ okr.last_updated }}
         </span>
         {% endif %}
+        {% if auth.can_create_kr_in_category(okr.category) %}
+        <button class="btn btn-primary btn-action-lg pills-action" onclick="openAddKrModal('{{ okr.id }}', '{{ okr.category }}')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Key Result
+        </button>
+        {% endif %}
       </div>
 
       {% if auth.can_edit_okr() or auth.can_delete_okr(okr.category) %}
@@ -205,12 +211,6 @@
       <div class="kr-section">
         <div class="kr-section-header">
           <span class="kr-section-title">Key Results ({{ okr.krs|length }})</span>
-          {% if auth.can_create_kr_in_category(okr.category) %}
-          <button class="btn btn-primary btn-sm" onclick="openAddKrModal('{{ okr.id }}', '{{ okr.category }}')">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Key Result
-          </button>
-          {% endif %}
         </div>
 
         {% if okr.krs|length == 0 %}
@@ -258,7 +258,7 @@
 
           <div class="kr-actions">
             {% if auth.can_update_kr() %}
-            <button class="btn btn-primary btn-sm" onclick='openUpdateKrModal({{ kr|tojson }})'>
+            <button class="btn btn-primary btn-action-lg" onclick='openUpdateKrModal({{ kr|tojson }})'>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               Update
             </button>

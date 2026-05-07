@@ -250,6 +250,18 @@ a:hover { text-decoration: underline; }
   font-size: 0.72rem;
 }
 
+/* Primary-action buttons that should stand out (1.5x of btn-sm).
+   Use on top-level CRUD entry points: + Add Objective, + Key Result, Update. */
+.btn-action-lg {
+  padding: 6px 18px;
+  font-size: 1.08rem;
+  gap: 8px;
+}
+.btn-action-lg svg {
+  width: 18px;
+  height: 18px;
+}
+
 .btn-block { width: 100%; justify-content: center; }
 
 /* -- Cards -- */
@@ -463,8 +475,16 @@ a:hover { text-decoration: underline; }
 .okr-pills {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   padding: 0 24px 16px;
+}
+
+/* Right-aligned action button inside the pills row (e.g. + Key Result).
+   margin-left:auto pushes it to the far right while still wrapping cleanly
+   on narrow viewports. */
+.okr-pills .pills-action {
+  margin-left: auto;
 }
 
 .info-pill {
