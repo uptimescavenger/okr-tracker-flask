@@ -438,6 +438,27 @@ function openEditKrModal(kr) {
   document.getElementById('editKrDirection').value = kr.direction;
   document.getElementById('editKrUnit').value = kr.unit || '';
   document.getElementById('editKrDescription').value = kr.description || '';
+
+  // Objective selector — only offer Objectives the user is allowed to place KRs in.
+  // Always include the current parent OKR so the field renders sensibly even when
+  // that OKR sits outside the user's normally-creatable categories.
+  const sel = document.getElementById('editKrOkrId');
+  if (sel) {
+    const allowed = (typeof IS_ADMIN !== 'undefined' && IS_ADMIN)
+      ? null
+      : new Set(typeof CREATABLE_CATEGORIES !== 'undefined' ? CREATABLE_CATEGORIES : []);
+    const options = (typeof ALL_OKRS !== 'undefined' ? ALL_OKRS : []).filter(o =>
+      String(o.id) === String(kr.okr_id) || allowed === null || allowed.has(o.category)
+    );
+    sel.innerHTML = options.map(o => {
+      const label = o.category ? `${o.title} — ${o.category}` : o.title;
+      const selected = String(o.id) === String(kr.okr_id) ? ' selected' : '';
+      const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      return `<option value="${esc(o.id)}"${selected}>${esc(label)}</option>`;
+    }).join('');
+    sel.dataset.original = kr.okr_id;
+  }
+
   openModal('editKrModal');
 }
 
@@ -453,6 +474,7 @@ function submitEditKr() {
   apiPost('/api/kr/edit', {
     quarter: quarter,
     id: document.getElementById('editKrId').value,
+    okr_id: document.getElementById('editKrOkrId')?.value || undefined,
     name: document.getElementById('editKrName').value,
     owner: document.getElementById('editKrOwner').value,
     target_value: Math.round(parseFloat(document.getElementById('editKrTarget').value) || 0),

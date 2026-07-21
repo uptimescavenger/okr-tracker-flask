@@ -385,12 +385,47 @@ def api_edit_kr():
     quarter = d.get("quarter", config.current_quarter())
     kr_id = d.get("id")
     now = datetime.now().strftime("%m/%d/%Y %H:%M")
+
+    # Detect a move-to-different-Objective request. Enforce category permissions
+    # on BOTH source and destination — a Manager cannot pull a KR out of Corporate
+    # or push one into it.
+    new_okr_id = d.get("okr_id")
+    old_okr_id = None
+    if new_okr_id:
+        okrs_df = sheets.read_okrs(quarter)
+        kpis_df = sheets.read_kpis(quarter)
+        kr_row = kpis_df[kpis_df["id"] == str(kr_id)]
+        if kr_row.empty:
+            return jsonify({"ok": False, "error": "Key Result not found"}), 404
+        old_okr_id = str(kr_row.iloc[0].get("okr_id", ""))
+        if str(new_okr_id) != old_okr_id:
+            src = okrs_df[okrs_df["id"] == old_okr_id]
+            dst = okrs_df[okrs_df["id"] == str(new_okr_id)]
+            if dst.empty:
+                return jsonify({"ok": False, "error": "Destination Objective not found"}), 404
+            src_cat = src.iloc[0].get("category", "") if not src.empty else ""
+            dst_cat = dst.iloc[0].get("category", "")
+            if not (auth.can_create_kr_in_category(src_cat) and auth.can_create_kr_in_category(dst_cat)):
+                return jsonify({"ok": False, "error": "Permission denied for this category"}), 403
+        else:
+            new_okr_id = None  # no-op move
+
     fields = {}
     for f in ("name", "owner", "target_value", "baseline_value", "direction", "unit", "description"):
         if f in d:
             fields[f] = d[f]
+    if new_okr_id:
+        fields["okr_id"] = new_okr_id
     fields["last_updated"] = now
     sheets.update_kpi_fields(quarter, kr_id, fields)
+
+    # If the KR moved, both OKRs' aggregate progress must be recomputed.
+    if new_okr_id and old_okr_id and str(new_okr_id) != old_okr_id:
+        fresh_kpis = sheets.read_kpis(quarter)
+        sheets._sync_okr_progress(quarter, old_okr_id, fresh_kpis, now)
+        sheets._sync_okr_progress(quarter, str(new_okr_id), fresh_kpis, now)
+        sheets._cache_invalidate(f"okrs:{quarter}")
+
     return jsonify({"ok": True})
 
 

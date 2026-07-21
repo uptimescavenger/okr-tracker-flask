@@ -485,6 +485,11 @@
     <div class="modal-title">Edit Key Result</div>
     <input type="hidden" id="editKrId">
     <div class="form-group">
+      <label class="form-label required">Objective</label>
+      <select class="form-select" id="editKrOkrId"></select>
+      <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">Change to move this Key Result to a different Objective.</div>
+    </div>
+    <div class="form-group">
       <label class="form-label required">Name</label>
       <input type="text" class="form-input" id="editKrName">
     </div>
@@ -580,5 +585,11 @@
 {% endif %}
 <script>
   const CURRENT_QUARTER = "{{ quarter }}";
+  const ALL_OKRS = [
+    {% for o in okrs %}{ id: {{ o.id|tojson }}, title: {{ o.title|tojson }}, category: {{ o.category|tojson }} }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+  const CREATABLE_CATEGORIES = {{ creatable_categories|tojson }};
+  const IS_ADMIN = {{ auth.is_admin()|tojson }};
 </script>
 {% endblock %}
