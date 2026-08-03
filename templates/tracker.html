@@ -120,7 +120,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
       <div class="okr-tabs" id="okrTabs">
         {% for okr in okrs %}
-        <button class="okr-tab {{ 'active' if loop.first }}" data-okr-idx="{{ loop.index0 }}" onclick="switchOkrTab({{ loop.index0 }})">
+        <button class="okr-tab {{ 'active' if loop.first }}" data-okr-idx="{{ loop.index0 }}" data-okr-id="{{ okr.id }}" draggable="true" onclick="switchOkrTab({{ loop.index0 }})">
           <span class="progress-dot" style="background:{{ okr.cat_color }}"></span>
           {{ okr.title|truncate(30) }}
         </button>
@@ -136,7 +136,7 @@
 
     <!-- OKR Cards -->
     {% for okr in okrs %}
-    <div class="okr-card" id="okrCard{{ loop.index0 }}" style="{{ '' if loop.first else 'display:none;' }}">
+    <div class="okr-card" id="okrCard{{ loop.index0 }}" data-okr-idx="{{ loop.index0 }}" data-okr-id="{{ okr.id }}" style="{{ '' if loop.first else 'display:none;' }}">
       <div class="okr-header">
         <div>
           <div class="okr-title">{{ okr.title }}</div>
@@ -585,6 +585,7 @@
 {% endif %}
 <script>
   const CURRENT_QUARTER = "{{ quarter }}";
+  const USER_EMAIL = {{ auth.user_email()|tojson }};
   const ALL_OKRS = [
     {% for o in okrs %}{ id: {{ o.id|tojson }}, title: {{ o.title|tojson }}, category: {{ o.category|tojson }} }{% if not loop.last %},{% endif %}
     {% endfor %}

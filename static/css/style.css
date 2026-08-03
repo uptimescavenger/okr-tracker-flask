@@ -417,7 +417,7 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius) var(--radius) 0 0;
   font-size: 0.85rem;
   font-weight: 600;
-  cursor: pointer;
+  cursor: grab;
   transition: all 0.2s ease;
   border: none;
   font-family: inherit;
@@ -426,6 +426,10 @@ a:hover { text-decoration: underline; }
   align-items: center;
   gap: 8px;
 }
+
+.okr-tab:active { cursor: grabbing; }
+.okr-tab.dragging { opacity: 0.5; }
+.okr-tab.drag-over { outline: 2px dashed var(--primary); outline-offset: -2px; }
 
 .okr-tab.active {
   background: var(--gradient-primary);

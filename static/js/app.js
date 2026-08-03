@@ -238,19 +238,121 @@ function toggleSidebar() {
 
 // ---------- OKR Tab Switching ----------
 
+// Match by data-okr-idx (a stable identity, not DOM position) so drag-reordering
+// the tabs does not change which card each tab points to.
 function switchOkrTab(idx) {
-  document.querySelectorAll('.okr-tab').forEach((tab, i) => {
-    tab.classList.toggle('active', i === idx);
+  const key = String(idx);
+  document.querySelectorAll('.okr-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.okrIdx === key);
   });
-  document.querySelectorAll('.okr-card').forEach((card, i) => {
-    card.style.display = i === idx ? 'block' : 'none';
+  document.querySelectorAll('.okr-card').forEach(card => {
+    card.style.display = card.dataset.okrIdx === key ? 'block' : 'none';
   });
-  // Persist active tab in URL hash so reloads land on the same tab
   history.replaceState(null, '', '#okr-' + idx);
 }
 
-// On page load, restore tab from URL hash
+// ---------- OKR Tab Reordering (drag-and-drop, sticky per user) ----------
+
+function _okrOrderKey() {
+  const email = (typeof USER_EMAIL !== 'undefined' && USER_EMAIL) ? USER_EMAIL : 'anon';
+  const q = (typeof CURRENT_QUARTER !== 'undefined' && CURRENT_QUARTER) ? CURRENT_QUARTER : 'na';
+  return 'okrOrder:' + email + ':' + q;
+}
+
+function _loadOkrOrder() {
+  try {
+    const raw = localStorage.getItem(_okrOrderKey());
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function _saveOkrOrder(ids) {
+  try {
+    localStorage.setItem(_okrOrderKey(), JSON.stringify(ids));
+  } catch (e) {}
+}
+
+// Reorder both the tab row and the card stack to match the saved order.
+// OKRs not in the saved order (e.g. newly created) go to the end in their
+// original position — preserves natural ordering for anything new.
+function applySavedOkrOrder() {
+  const saved = _loadOkrOrder();
+  if (!saved || !Array.isArray(saved) || !saved.length) return;
+
+  const tabsWrap = document.getElementById('okrTabs');
+  if (!tabsWrap) return;
+  const cards = Array.from(document.querySelectorAll('.okr-card'));
+  const cardParent = cards.length ? cards[0].parentNode : null;
+
+  const tabsById = new Map(
+    Array.from(tabsWrap.querySelectorAll('.okr-tab')).map(t => [t.dataset.okrId, t])
+  );
+  const cardsById = new Map(cards.map(c => [c.dataset.okrId, c]));
+
+  // Place saved-order items first (in the saved order), then anything left.
+  const seen = new Set();
+  saved.forEach(id => {
+    const t = tabsById.get(id);
+    if (t) { tabsWrap.appendChild(t); seen.add(id); }
+    const c = cardsById.get(id);
+    if (c && cardParent) { cardParent.appendChild(c); }
+  });
+  tabsById.forEach((t, id) => { if (!seen.has(id)) tabsWrap.appendChild(t); });
+  cardsById.forEach((c, id) => { if (!seen.has(id) && cardParent) cardParent.appendChild(c); });
+}
+
+function initOkrTabDragging() {
+  const tabsWrap = document.getElementById('okrTabs');
+  if (!tabsWrap) return;
+  let dragging = null;
+
+  tabsWrap.addEventListener('dragstart', function(e) {
+    const tab = e.target.closest('.okr-tab');
+    if (!tab) return;
+    dragging = tab;
+    tab.classList.add('dragging');
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      // Firefox requires setData for the drag to fire
+      e.dataTransfer.setData('text/plain', tab.dataset.okrId || '');
+    }
+  });
+
+  tabsWrap.addEventListener('dragend', function() {
+    if (dragging) dragging.classList.remove('dragging');
+    tabsWrap.querySelectorAll('.okr-tab.drag-over').forEach(t => t.classList.remove('drag-over'));
+    dragging = null;
+  });
+
+  tabsWrap.addEventListener('dragover', function(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    const target = e.target.closest('.okr-tab');
+    if (!target || target === dragging) return;
+    const rect = target.getBoundingClientRect();
+    const before = (e.clientX - rect.left) < rect.width / 2;
+    tabsWrap.insertBefore(dragging, before ? target : target.nextSibling);
+  });
+
+  tabsWrap.addEventListener('drop', function(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    // Persist the new order.
+    const ids = Array.from(tabsWrap.querySelectorAll('.okr-tab'))
+      .map(t => t.dataset.okrId)
+      .filter(Boolean);
+    _saveOkrOrder(ids);
+  });
+}
+
+// On page load: apply saved order first, then restore tab from URL hash.
 document.addEventListener('DOMContentLoaded', function() {
+  applySavedOkrOrder();
+  initOkrTabDragging();
+
   const hash = window.location.hash;
   if (hash && hash.startsWith('#okr-')) {
     const idx = parseInt(hash.replace('#okr-', ''), 10);
