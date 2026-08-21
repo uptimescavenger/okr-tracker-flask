@@ -254,6 +254,8 @@ function switchOkrTab(idx) {
   document.getElementById('shell')?.classList.add('showing-detail');
   const pane = document.getElementById('detailPane');
   if (pane) pane.scrollTop = 0;
+  // Charts built inside a hidden card measured the wrong width — re-measure.
+  window.resizeOkrCharts?.();
 }
 
 // Tabs within one objective: 0 = Key Results, 1 = Notes, 2 = History
@@ -263,12 +265,21 @@ function switchOkrPanel(btn, okrIdx, panelIdx) {
   document.querySelectorAll('.opanel[data-okr-panel="' + okrIdx + '"]').forEach(p => {
     p.classList.toggle('on', p.dataset.panel === String(panelIdx));
   });
+  window.resizeOkrCharts?.();
 }
 
 // Phone-only: go back from the detail screen to the objective list
 function showObjectiveList() {
   document.getElementById('shell')?.classList.remove('showing-detail');
 }
+
+// Charts are sized explicitly, so every window resize needs a re-fit.
+// Debounced — resize fires continuously while dragging a window edge.
+let _chartResizeTimer = null;
+window.addEventListener('resize', function() {
+  clearTimeout(_chartResizeTimer);
+  _chartResizeTimer = setTimeout(() => window.resizeOkrCharts?.(), 120);
+});
 
 // ---------- Objective drawer (tablet overlay) ----------
 

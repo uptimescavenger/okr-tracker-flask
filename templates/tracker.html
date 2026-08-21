@@ -577,10 +577,51 @@
           paper_bgcolor: 'transparent',
           plot_bgcolor: 'transparent',
           showlegend: false,
-        }, { responsive: true, displayModeBar: false });
+        }, { responsive: false, displayModeBar: false });
       }
     });
+    resizeOkrCharts();
   });
+
+  // Plotly measures its container when the plot is created. Every objective
+  // except the first renders inside a display:none card, so those charts get
+  // Plotly's fallback width and stay too narrow once revealed.
+  //
+  // Plotly.Plots.resize() only ever grows a plot — it will not shrink one back
+  // down when the window narrows — so set the width explicitly from the
+  // container instead of relying on autosize.
+  var CHART_HEIGHT = 160;
+  // Runs synchronously on purpose. requestAnimationFrame is suspended while a
+  // tab is backgrounded, which would leave charts stuck at the wrong width
+  // until the tab regains focus. Reading clientWidth forces the reflow we need
+  // anyway, so measuring right after the display change is already accurate.
+  function resizeOkrCharts() {
+    if (typeof Plotly === 'undefined') return;
+    document.querySelectorAll('.js-plotly-plot').forEach(function(el) {
+      // offsetParent is null while the element (or an ancestor) is hidden;
+      // a hidden container measures 0 and would collapse the plot.
+      if (el.offsetParent === null) return;
+      // The plot div IS the chart container, so its parent is the padded
+      // .kr-card — subtract that padding to get the real content width.
+      // (Measuring el itself is no good: once Plotly writes an explicit width
+      // there, it reports that instead of the space actually available.)
+      var parent = el.parentNode;
+      if (!parent) return;
+      var cs = window.getComputedStyle(parent);
+      var w = parent.clientWidth
+            - (parseFloat(cs.paddingLeft) || 0)
+            - (parseFloat(cs.paddingRight) || 0);
+      if (!(w > 0)) return;
+      if (el._fullLayout && Math.abs(el._fullLayout.width - w) < 2) return;
+      try { Plotly.relayout(el, { width: w, height: CHART_HEIGHT }); } catch (e) {}
+    });
+  }
+  // A tab restored from the background may have missed a resize while hidden.
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) resizeOkrCharts();
+  });
+  // Called by switchOkrTab / switchOkrPanel in app.js when panes are revealed.
+  window.resizeOkrCharts = resizeOkrCharts;
 </script>
 {% endif %}
 <script>
