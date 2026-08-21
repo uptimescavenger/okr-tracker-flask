@@ -13,3 +13,6 @@ build/
 service_account.json
 *.log
 .DS_Store
+
+# Local dev helper (stubbed Sheets) — never deployed
+devserver.py
