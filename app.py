@@ -87,6 +87,19 @@ def admin_required(f):
     return decorated
 
 
+# ---------- Template filters ----------
+
+@app.template_filter("initials")
+def _initials(name: str) -> str:
+    """"Jinesh Patel" -> "JP". Used for the header avatar."""
+    parts = [p for p in str(name or "").split() if p]
+    if not parts:
+        return "?"
+    if len(parts) == 1:
+        return parts[0][:2].upper()
+    return (parts[0][0] + parts[-1][0]).upper()
+
+
 # ---------- Context processor ----------
 
 @app.context_processor
@@ -275,6 +288,10 @@ def tracker():
     notes_by_parent = data.group_notes_by_parent(notes_df)
     trend_by_kpi = data.group_history_by_kpi(history_df)
 
+    # How far into the quarter we are — drives the pace marker and health status.
+    pace = config.quarter_pace(quarter)
+    elapsed = pace["elapsed"]
+
     # Build OKR data for template + minimal chart payload
     okr_list = []
     chart_data = []  # Minimal: only kr_id + trend arrays
@@ -310,11 +327,34 @@ def tracker():
                 "description": kr_row.get("description", ""),
                 "achievement": int(round(achievement)),
                 "color": data.progress_color(achievement),
+                "health": data.health_for(achievement, elapsed),
                 "current_display": data.format_value(kr_row.get("current_value", 0), kr_row.get("unit", "")),
                 "target_display": data.format_value(kr_row.get("target_value", 0), kr_row.get("unit", "")),
                 "notes": kr_notes,
                 "has_trend": len(trend) > 1,
             })
+
+        # Flat update log for the objective's History tab — newest first.
+        okr_history = []
+        for kr_row in krs:
+            kr_id = str(kr_row["id"])
+            unit = kr_row.get("unit", "")
+            points = trend_by_kpi.get(kr_id, [])
+            prev = None
+            for pt in points:
+                try:
+                    val = float(pt.get("value") or 0)
+                except (TypeError, ValueError):
+                    val = 0.0
+                okr_history.append({
+                    "kr_name": kr_row.get("name", ""),
+                    "date": pt.get("date", ""),
+                    "value": data.format_value(val, unit),
+                    "delta": None if prev is None else int(round(val - prev)),
+                })
+                prev = val
+        okr_history.sort(key=lambda h: h["date"], reverse=True)
+        okr_history = okr_history[:40]
 
         okr_notes = notes_by_parent.get(("OKR", okr_id), [])
         okr_list.append({
@@ -327,9 +367,11 @@ def tracker():
             "last_updated": okr_row.get("last_updated", ""),
             "progress": int(round(pct)),
             "color": color,
+            "health": data.health_for(pct, elapsed),
             "cat_color": data.category_color(okr_row.get("category", "")),
             "krs": kr_list,
             "notes": okr_notes,
+            "history": okr_history,
         })
         if kr_charts:
             chart_data.extend(kr_charts)
@@ -357,6 +399,7 @@ def tracker():
         categories=config.OKR_CATEGORIES,
         creatable_categories=auth.creatable_categories(),
         activity=activity,
+        pace=pace,
     )
 
 

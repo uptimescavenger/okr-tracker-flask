@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OKR Tracker — UI Directions</title>
+<style>
+:root{--bg:#f7f7f8;--surface:#fff;--border:#e4e4e8;--ink:#18181b;--ink2:#57575f;--ink3:#8b8b95;--accent:#5b5bd6;--accent-soft:#eeeefb}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:48px 28px 80px}
+.eyebrow{font-size:11.5px;font-weight:750;text-transform:uppercase;letter-spacing:.09em;color:var(--ink3);margin-bottom:8px}
+h1{font-size:34px;font-weight:730;letter-spacing:-.03em;line-height:1.15}
+.lede{font-size:16px;color:var(--ink2);margin-top:10px;max-width:70ch}
+.note{background:var(--accent-soft);border:1px solid #d5d5f5;border-radius:12px;padding:14px 18px;margin:24px 0 34px;font-size:13.5px;color:var(--ink2)}
+.note b{color:var(--ink)}
+.grid{display:grid;gap:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 24px;transition:.14s}
+.card:hover{border-color:#c8c8d2;box-shadow:0 4px 18px rgba(0,0,0,.05)}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.badge{font-size:11px;font-weight:750;letter-spacing:.05em;text-transform:uppercase;background:var(--ink);color:#fff;border-radius:6px;padding:3px 9px}
+h2{font-size:21px;font-weight:690;letter-spacing:-.022em;margin:9px 0 3px}
+.sub{font-size:13.5px;color:var(--ink3);font-weight:600}
+p.body{font-size:14px;color:var(--ink2);margin-top:11px;max-width:74ch}
+.rows{display:grid;grid-template-columns:1fr 1fr;gap:14px 26px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+@media(max-width:720px){.rows{grid-template-columns:1fr}}
+.rl{font-size:10.5px;font-weight:750;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:5px}
+ul{list-style:none;font-size:13.5px;color:var(--ink2)}
+li{padding-left:16px;position:relative;margin-bottom:4px}
+li::before{content:'';position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:50%;background:#22c55e}
+li.con::before{background:#f59e0b}
+.open{display:inline-flex;align-items:center;gap:7px;background:var(--accent);color:#fff;border-radius:9px;padding:9px 18px;font-size:14px;font-weight:650;text-decoration:none;margin-top:18px;transition:.12s}
+.open:hover{background:#4a4ac4}
+.shared{margin-top:40px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 24px}
+.shared h3{font-size:16px;font-weight:690;letter-spacing:-.015em;margin-bottom:12px}
+.shared ul li::before{background:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">UptimeHealth · OKR Tracker</div>
+  <h1>Three UI directions</h1>
+  <p class="lede">Each one keeps <strong>100% of current functionality</strong> — every button, permission, modal and field survives. What changes is layout, density, and how quickly someone can answer “what’s off track and who owns it?”</p>
+
+  <div class="note">
+    <b>The shared structural fix:</b> today only one objective is visible at a time (tabs), and progress is shown as a raw percentage with no sense of whether that’s good for late August. All three directions show the whole portfolio and add a <b>pace marker</b> — the expected progress for today, 57% into Q3.
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-top">
+        <div><span class="badge">Direction A</span><h2>Command Center</h2><div class="sub">Dense · neutral · dark-mode · Linear-inspired</div></div>
+      </div>
+      <p class="body">Everything on one screen at maximum information density. Objectives are collapsible rows, key results are table rows with inline sparklines, and actions appear on hover so the page stays quiet. Built for someone who lives in this tool daily and wants to scan eleven key results in one glance.</p>
+      <div class="rows">
+        <div><div class="rl">Strengths</div><ul><li>Highest information density</li><li>True dark mode</li><li>Scales past 20 objectives</li><li>Feels like modern dev tooling</li></ul></div>
+        <div><div class="rl">Trade-offs</div><ul><li class="con">Least “executive presentation” feel</li><li class="con">Descriptions and notes are one click away</li><li class="con">Hover-reveal is weaker on touch</li></ul></div>
+      </div>
+      <a class="open" href="a-command-center.html">Open Direction A →</a>
+    </div>
+
+    <div class="card">
+      <div class="card-top">
+        <div><span class="badge">Direction B</span><h2>Executive Portfolio</h2><div class="sub">Airy · confident · Lattice / Viva Goals-inspired</div></div>
+      </div>
+      <p class="body">Big typography, generous spacing, and a scoreboard up top with health segments and quarter timeline. Every objective is a full card that always shows its key results in a clean table with current, target, and pace. Designed for the quarterly review meeting — you can share your screen and nobody has to ask what they’re looking at.</p>
+      <div class="rows">
+        <div><div class="rl">Strengths</div><ul><li>Best for exec review / screen-share</li><li>Health and pace are unmissable</li><li>Descriptions get real space</li><li>Activity rail stays visible</li></ul></div>
+        <div><div class="rl">Trade-offs</div><ul><li class="con">More scrolling with many objectives</li><li class="con">Lower density per screen</li></ul></div>
+      </div>
+      <a class="open" href="b-executive.html">Open Direction B →</a>
+    </div>
+
+    <div class="card">
+      <div class="card-top">
+        <div><span class="badge">Direction C</span><h2>Focus Board</h2><div class="sub">Two-pane · closest to today · Notion-inspired</div></div>
+      </div>
+      <p class="body">Keeps your current “one objective at a time” mental model but fixes its blind spot: a left rail lists every objective with its health, so you never lose the portfolio view while working in one. Drag-to-reorder still lives in the rail. Notes and History move into tabs so key result cards stay short. Smallest change for your users to absorb.</p>
+      <div class="rows">
+        <div><div class="rl">Strengths</div><ul><li>Lowest retraining cost</li><li>Portfolio + detail simultaneously</li><li>Keeps drag-to-reorder</li><li>Cards stop growing forever</li></ul></div>
+        <div><div class="rl">Trade-offs</div><ul><li class="con">Can’t compare two objectives side by side</li><li class="con">Needs a real mobile fallback</li></ul></div>
+      </div>
+      <a class="open" href="c-focus-board.html">Open Direction C →</a>
+    </div>
+  </div>
+
+  <div class="shared">
+    <h3>Improvements common to all three</h3>
+    <ul>
+      <li><b>Pace marker</b> — a tick on every progress bar showing expected progress for today (day 52 of 92). “50%” means something different in July than in September.</li>
+      <li><b>Derived health</b> — On Track / At Risk / Off Track computed from progress vs. time elapsed, replacing the flat purple bar where everything looked the same.</li>
+      <li><b>No tabs</b> — the whole portfolio is visible; objectives are never hidden behind a click.</li>
+      <li><b>Neutral palette with one accent</b> — the tri-colour pastel gradient is replaced with a calm neutral so the red/amber/green status colours actually stand out.</li>
+      <li><b>Quieter secondary actions</b> — Edit / Move / Delete stop competing with Submit Update.</li>
+      <li><b>Tabular numerals</b> — figures line up in columns instead of jittering.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

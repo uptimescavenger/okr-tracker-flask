@@ -236,22 +236,72 @@ function toggleSidebar() {
   overlay.classList.toggle('active');
 }
 
-// ---------- OKR Tab Switching ----------
+// ---------- Objective switching (Focus Board) ----------
 
 // Match by data-okr-idx (a stable identity, not DOM position) so drag-reordering
-// the tabs does not change which card each tab points to.
+// the drawer does not change which card each row points to.
 function switchOkrTab(idx) {
   const key = String(idx);
-  document.querySelectorAll('.okr-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.okrIdx === key);
+  document.querySelectorAll('.oitem').forEach(item => {
+    item.classList.toggle('sel', item.dataset.okrIdx === key);
   });
   document.querySelectorAll('.okr-card').forEach(card => {
     card.style.display = card.dataset.okrIdx === key ? 'block' : 'none';
   });
   history.replaceState(null, '', '#okr-' + idx);
+  closeDrawer();
+  // On phones the drawer and detail are separate screens — reveal the detail.
+  document.getElementById('shell')?.classList.add('showing-detail');
+  const pane = document.getElementById('detailPane');
+  if (pane) pane.scrollTop = 0;
 }
 
-// ---------- OKR Tab Reordering (drag-and-drop, sticky per user) ----------
+// Tabs within one objective: 0 = Key Results, 1 = Notes, 2 = History
+function switchOkrPanel(btn, okrIdx, panelIdx) {
+  const head = btn.closest('.okr-tabs');
+  if (head) head.querySelectorAll('.otab').forEach(t => t.classList.toggle('on', t === btn));
+  document.querySelectorAll('.opanel[data-okr-panel="' + okrIdx + '"]').forEach(p => {
+    p.classList.toggle('on', p.dataset.panel === String(panelIdx));
+  });
+}
+
+// Phone-only: go back from the detail screen to the objective list
+function showObjectiveList() {
+  document.getElementById('shell')?.classList.remove('showing-detail');
+}
+
+// ---------- Objective drawer (tablet overlay) ----------
+
+function toggleDrawer() {
+  const d = document.getElementById('objDrawer');
+  const s = document.getElementById('drawerScrim');
+  if (!d) return;
+  const open = d.classList.toggle('open');
+  if (s) s.classList.toggle('on', open);
+}
+
+function closeDrawer() {
+  document.getElementById('objDrawer')?.classList.remove('open');
+  document.getElementById('drawerScrim')?.classList.remove('on');
+}
+
+// ---------- Account menu ----------
+
+function toggleAccountMenu(e) {
+  if (e) e.stopPropagation();
+  const m = document.getElementById('accountMenu');
+  const s = document.getElementById('accountScrim');
+  if (!m) return;
+  const open = m.classList.toggle('open');
+  if (s) s.classList.toggle('on', open);
+}
+
+function closeAccountMenu() {
+  document.getElementById('accountMenu')?.classList.remove('open');
+  document.getElementById('accountScrim')?.classList.remove('on');
+}
+
+// ---------- Objective reordering (drag-and-drop, sticky per user) ----------
 
 function _okrOrderKey() {
   const email = (typeof USER_EMAIL !== 'undefined' && USER_EMAIL) ? USER_EMAIL : 'anon';
@@ -269,96 +319,105 @@ function _loadOkrOrder() {
 }
 
 function _saveOkrOrder(ids) {
-  try {
-    localStorage.setItem(_okrOrderKey(), JSON.stringify(ids));
-  } catch (e) {}
+  try { localStorage.setItem(_okrOrderKey(), JSON.stringify(ids)); } catch (e) {}
 }
 
-// Reorder both the tab row and the card stack to match the saved order.
-// OKRs not in the saved order (e.g. newly created) go to the end in their
-// original position — preserves natural ordering for anything new.
+// Reorder the drawer rows (and matching detail sections) to the saved order.
+// Objectives not in the saved order — e.g. newly created — fall in at the end.
 function applySavedOkrOrder() {
   const saved = _loadOkrOrder();
   if (!saved || !Array.isArray(saved) || !saved.length) return;
 
-  const tabsWrap = document.getElementById('okrTabs');
-  if (!tabsWrap) return;
+  const list = document.getElementById('objList');
+  if (!list) return;
   const cards = Array.from(document.querySelectorAll('.okr-card'));
   const cardParent = cards.length ? cards[0].parentNode : null;
 
-  const tabsById = new Map(
-    Array.from(tabsWrap.querySelectorAll('.okr-tab')).map(t => [t.dataset.okrId, t])
+  const itemsById = new Map(
+    Array.from(list.querySelectorAll('.oitem')).map(t => [t.dataset.okrId, t])
   );
   const cardsById = new Map(cards.map(c => [c.dataset.okrId, c]));
 
-  // Place saved-order items first (in the saved order), then anything left.
   const seen = new Set();
   saved.forEach(id => {
-    const t = tabsById.get(id);
-    if (t) { tabsWrap.appendChild(t); seen.add(id); }
+    const t = itemsById.get(id);
+    if (t) { list.appendChild(t); seen.add(id); }
     const c = cardsById.get(id);
-    if (c && cardParent) { cardParent.appendChild(c); }
+    if (c && cardParent) cardParent.appendChild(c);
   });
-  tabsById.forEach((t, id) => { if (!seen.has(id)) tabsWrap.appendChild(t); });
+  itemsById.forEach((t, id) => { if (!seen.has(id)) list.appendChild(t); });
   cardsById.forEach((c, id) => { if (!seen.has(id) && cardParent) cardParent.appendChild(c); });
 }
 
-function initOkrTabDragging() {
-  const tabsWrap = document.getElementById('okrTabs');
-  if (!tabsWrap) return;
+function initOkrDragging() {
+  const list = document.getElementById('objList');
+  if (!list) return;
   let dragging = null;
 
-  tabsWrap.addEventListener('dragstart', function(e) {
-    const tab = e.target.closest('.okr-tab');
-    if (!tab) return;
-    dragging = tab;
-    tab.classList.add('dragging');
+  list.addEventListener('dragstart', function(e) {
+    const item = e.target.closest('.oitem');
+    if (!item) return;
+    dragging = item;
+    item.classList.add('dragging');
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = 'move';
-      // Firefox requires setData for the drag to fire
-      e.dataTransfer.setData('text/plain', tab.dataset.okrId || '');
+      // Firefox requires setData for the drag to fire at all
+      e.dataTransfer.setData('text/plain', item.dataset.okrId || '');
     }
   });
 
-  tabsWrap.addEventListener('dragend', function() {
+  list.addEventListener('dragend', function() {
     if (dragging) dragging.classList.remove('dragging');
-    tabsWrap.querySelectorAll('.okr-tab.drag-over').forEach(t => t.classList.remove('drag-over'));
     dragging = null;
   });
 
-  tabsWrap.addEventListener('dragover', function(e) {
+  list.addEventListener('dragover', function(e) {
     if (!dragging) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-    const target = e.target.closest('.okr-tab');
+    const target = e.target.closest('.oitem');
     if (!target || target === dragging) return;
     const rect = target.getBoundingClientRect();
-    const before = (e.clientX - rect.left) < rect.width / 2;
-    tabsWrap.insertBefore(dragging, before ? target : target.nextSibling);
+    const before = (e.clientY - rect.top) < rect.height / 2;
+    list.insertBefore(dragging, before ? target : target.nextSibling);
   });
 
-  tabsWrap.addEventListener('drop', function(e) {
+  list.addEventListener('drop', function(e) {
     if (!dragging) return;
     e.preventDefault();
-    // Persist the new order.
-    const ids = Array.from(tabsWrap.querySelectorAll('.okr-tab'))
+    const ids = Array.from(list.querySelectorAll('.oitem'))
       .map(t => t.dataset.okrId)
       .filter(Boolean);
     _saveOkrOrder(ids);
   });
 }
 
-// On page load: apply saved order first, then restore tab from URL hash.
-document.addEventListener('DOMContentLoaded', function() {
-  applySavedOkrOrder();
-  initOkrTabDragging();
+const _isPhone = () => window.matchMedia('(max-width: 640px)').matches;
 
+document.addEventListener('DOMContentLoaded', function() {
+  if (!document.getElementById('objList')) return;
+  applySavedOkrOrder();
+  initOkrDragging();
+
+  // Restore the objective from the URL hash, else select the first.
+  let restored = false;
   const hash = window.location.hash;
   if (hash && hash.startsWith('#okr-')) {
     const idx = parseInt(hash.replace('#okr-', ''), 10);
-    if (!isNaN(idx) && document.querySelector('[data-okr-idx="' + idx + '"]')) {
+    if (!isNaN(idx) && document.querySelector('.oitem[data-okr-idx="' + idx + '"]')) {
       switchOkrTab(idx);
+      restored = true;
     }
+  }
+  // On wide screens both panes show at once, so always reveal the detail.
+  if (!_isPhone()) document.getElementById('shell')?.classList.add('showing-detail');
+  else if (!restored) showObjectiveList();
+});
+
+window.addEventListener('resize', function() {
+  if (!_isPhone()) {
+    closeDrawer();
+    document.getElementById('shell')?.classList.add('showing-detail');
   }
 });
 
@@ -688,18 +747,8 @@ window.addEventListener('beforeunload', function() {
 
 function setActivityDrawer(open) {
   const drawer = document.getElementById('activityDrawer');
-  const toggle = document.getElementById('activityToggle');
-  const main = document.querySelector('.main-content');
-  if (!drawer || !toggle || !main) return;
-  if (open) {
-    drawer.classList.add('open');
-    toggle.style.display = 'none';
-    main.classList.add('with-activity');
-  } else {
-    drawer.classList.remove('open');
-    toggle.style.display = '';
-    main.classList.remove('with-activity');
-  }
+  if (!drawer) return;
+  drawer.classList.toggle('open', !!open);
   try { localStorage.setItem('okr_activity_open', open ? '1' : '0'); } catch (e) {}
 }
 
@@ -710,7 +759,7 @@ function toggleActivityDrawer() {
 }
 
 function markActivityRead() {
-  const badge = document.querySelector('.activity-toggle-count');
+  const badge = document.getElementById('activityBadge');
   const currentCount = badge ? parseInt(badge.textContent || '0', 10) : 0;
   try { localStorage.setItem('okr_activity_read_count', String(currentCount)); } catch (e) {}
   if (badge) badge.style.display = 'none';
@@ -718,19 +767,16 @@ function markActivityRead() {
 
 document.addEventListener('DOMContentLoaded', function() {
   if (!document.getElementById('activityDrawer')) return;
-
-  // Restore drawer open/close state
-  let open = true;
-  try {
-    const stored = localStorage.getItem('okr_activity_open');
-    if (stored === '0') open = false;
-  } catch (e) {}
+  // The drawer overlays content in this layout, so it starts closed unless the
+  // user explicitly left it open last time.
+  let open = false;
+  try { open = localStorage.getItem('okr_activity_open') === '1'; } catch (e) {}
   setActivityDrawer(open);
 
-  // Hide badge if count hasn't grown since user last clicked "Read all"
+  // Hide the badge if the count hasn't grown since the user hit "Read all"
   try {
     const readCount = parseInt(localStorage.getItem('okr_activity_read_count') || '-1', 10);
-    const badge = document.querySelector('.activity-toggle-count');
+    const badge = document.getElementById('activityBadge');
     if (badge && readCount >= parseInt(badge.textContent || '0', 10)) {
       badge.style.display = 'none';
     }

@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C — Focus Board</title>
+<style>
+:root{
+  --bg:#f4f5f7; --surface:#fff; --soft:#f8f9fb; --sunk:#eef0f4;
+  --border:#e3e6ec; --border-2:#d2d7e0;
+  --ink:#141721; --ink-2:#4d5566; --ink-3:#8b93a4;
+  --accent:#5145cd; --accent-soft:#eeecfb; --accent-line:#cfc9f5;
+  --green:#0e8a52; --green-soft:#e6f6ee;
+  --amber:#b0770b; --amber-soft:#fcf4e4;
+  --red:#c9302c; --red-soft:#fbeeed;
+  --r:10px;
+  --header-h:56px;
+  --drawer-w:360px;
+}
+@media(max-width:1279px){:root{--drawer-w:310px}}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;
+  background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;overflow:hidden;
+}
+
+/* ══ HEADER ══════════════════════════════ */
+.hdr{
+  height:var(--header-h);background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;padding:0 16px;position:relative;z-index:40;
+}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;flex:none}
+.logo{
+  width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;
+  display:grid;place-items:center;font-weight:800;font-size:13px;flex:none;
+}
+.wordmark{font-size:15px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+.hdr-qtr{
+  appearance:none;border:1px solid var(--border-2);background:var(--soft);border-radius:8px;
+  padding:5px 26px 5px 11px;font:inherit;font-size:13px;font-weight:650;cursor:pointer;color:var(--ink);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' fill='none' stroke='%238b93a4' stroke-width='2'%3E%3Cpath d='M2.5 4L5.5 7L8.5 4'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;margin-left:6px;flex:none;
+}
+.hdr-spacer{flex:1}
+.hdr-search{
+  width:min(300px,26vw);background:var(--soft);border:1px solid var(--border-2);border-radius:8px;
+  padding:6px 11px;font:inherit;font-size:13px;color:var(--ink);
+}
+.hdr-search::placeholder{color:var(--ink-3)}
+.hdr-nav{display:flex;align-items:center;gap:3px;flex:none}
+.hdr-div{width:1px;height:24px;background:var(--border);margin:0 5px;flex:none}
+.hb{
+  height:34px;min-width:34px;padding:0 9px;border-radius:8px;border:none;background:none;
+  color:var(--ink-2);display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  cursor:pointer;transition:.12s;font:inherit;font-size:13px;font-weight:600;position:relative;
+}
+.hb:hover{background:var(--sunk);color:var(--ink)}
+.hb.on{background:var(--accent-soft);color:var(--accent)}
+.hb-label{display:inline}
+@media(max-width:1100px){.hb-label{display:none}}
+.hb-badge{
+  position:absolute;top:2px;right:2px;min-width:15px;height:15px;border-radius:8px;
+  background:var(--red);color:#fff;font-size:9.5px;font-weight:750;
+  display:grid;place-items:center;padding:0 4px;
+}
+.hdr-av{
+  width:31px;height:31px;border-radius:50%;background:linear-gradient(135deg,#5145cd,#9333ea);
+  color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;cursor:pointer;
+  flex:none;border:none;
+}
+.burger{display:none}
+
+/* ══ BODY SPLIT ══════════════════════════ */
+.body{display:flex;height:calc(100vh - var(--header-h));position:relative}
+
+/* ── Objective drawer ─────────────────── */
+.drawer{
+  width:var(--drawer-w);flex:none;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;min-width:0;
+}
+.dw-top{padding:14px 16px 12px;border-bottom:1px solid var(--border)}
+.dw-title{
+  font-size:11px;font-weight:760;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:11px;
+}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.st-l{font-size:9.5px;font-weight:760;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.st-v{font-size:18px;font-weight:740;letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1.2}
+.timerow{margin-top:12px}
+.tbar{height:5px;border-radius:3px;background:var(--sunk);overflow:hidden;margin-top:5px}
+.tbar i{display:block;height:100%;background:var(--border-2)}
+.tnote{font-size:11.5px;color:var(--ink-3);margin-top:5px}
+.cats{
+  display:flex;flex-wrap:wrap;gap:5px;padding:10px 14px;
+  border-bottom:1px solid var(--border);
+}
+.cchip{
+  border:1px solid var(--border-2);background:var(--surface);border-radius:16px;padding:3.5px 11px;
+  font:inherit;font-size:12px;font-weight:620;color:var(--ink-2);cursor:pointer;white-space:nowrap;flex:none;
+}
+.cchip:hover{background:var(--soft)}
+.cchip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;flex:none}
+.dw-scroll{flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch}
+.oitem{
+  border:1px solid transparent;border-radius:var(--r);padding:11px 12px 11px 20px;margin-bottom:4px;
+  cursor:pointer;transition:.12s;position:relative;
+}
+.oitem:hover{background:var(--soft)}
+.oitem.sel{background:var(--accent-soft);border-color:var(--accent-line)}
+.grip{
+  position:absolute;left:5px;top:50%;transform:translateY(-50%);color:var(--ink-3);
+  opacity:0;cursor:grab;transition:.12s;
+}
+.oitem:hover .grip{opacity:1}
+.oi-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.oi-t{font-size:13.5px;font-weight:620;letter-spacing:-.01em;line-height:1.35;min-width:0}
+.oi-p{font-size:14.5px;font-weight:740;font-variant-numeric:tabular-nums;flex:none;letter-spacing:-.025em}
+.oi-m{display:flex;align-items:center;gap:7px;margin-top:5px;font-size:11.5px;color:var(--ink-3);flex-wrap:wrap}
+.oi-badge{
+  font-size:9.5px;font-weight:760;padding:1px 6px;border-radius:4px;
+  text-transform:uppercase;letter-spacing:.04em;
+}
+.obar{height:4px;border-radius:2px;background:var(--sunk);margin-top:8px;position:relative}
+.obar i{display:block;height:100%;border-radius:2px}
+.omark{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink);opacity:.35;border-radius:1px}
+.dw-foot{padding:10px;border-top:1px solid var(--border)}
+.add-btn{
+  width:100%;border:1px dashed var(--border-2);background:none;border-radius:var(--r);
+  padding:9px;font:inherit;font-size:13px;font-weight:640;color:var(--ink-2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;transition:.12s;
+}
+.add-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+/* ── Detail pane ──────────────────────── */
+.detail{flex:1;min-width:0;overflow-y:auto;background:var(--bg);-webkit-overflow-scrolling:touch}
+.dhead{background:var(--surface);border-bottom:1px solid var(--border);padding:18px clamp(16px,2.2vw,28px) 0}
+.back{
+  display:none;align-items:center;gap:6px;background:none;border:none;font:inherit;font-size:13px;
+  font-weight:650;color:var(--accent);cursor:pointer;padding:0;margin-bottom:10px;
+}
+.dtags{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+.tag{
+  font-size:11px;font-weight:680;padding:2px 8px;border-radius:5px;background:var(--sunk);
+  color:var(--ink-2);display:inline-flex;align-items:center;gap:5px;
+}
+.state{font-size:10.5px;font-weight:770;padding:2.5px 8px;border-radius:5px;text-transform:uppercase;letter-spacing:.05em}
+.st-on{background:var(--green-soft);color:var(--green)}
+.st-risk{background:var(--amber-soft);color:var(--amber)}
+.st-off{background:var(--red-soft);color:var(--red)}
+.dtop{display:flex;gap:clamp(16px,2.5vw,28px);align-items:flex-start;flex-wrap:wrap}
+.dmain{flex:1 1 320px;min-width:0}
+.dh1{font-size:clamp(19px,2.1vw,24px);font-weight:710;letter-spacing:-.027em;line-height:1.24}
+.ddesc{font-size:13.5px;color:var(--ink-2);margin-top:6px;max-width:70ch}
+.dright{flex:0 0 auto;text-align:right;min-width:150px}
+@media(max-width:640px){.dright{text-align:left;flex-basis:100%;min-width:0}}
+.dpct{font-size:clamp(30px,3.4vw,38px);font-weight:750;letter-spacing:-.038em;line-height:1;font-variant-numeric:tabular-nums}
+.ddelta{font-size:12px;font-weight:640;margin-top:4px}
+.dbar{height:8px;border-radius:4px;background:var(--sunk);margin-top:11px;position:relative}
+.dbar i{display:block;height:100%;border-radius:4px}
+.dmark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.4;border-radius:1px}
+.dmark::after{
+  content:'pace';position:absolute;top:-14px;left:50%;transform:translateX(-50%);
+  font-size:9px;font-weight:760;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;
+}
+.tabs{display:flex;gap:2px;margin-top:16px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  border:none;background:none;padding:9px 14px;font:inherit;font-size:13.5px;font-weight:640;
+  color:var(--ink-3);cursor:pointer;border-bottom:2px solid transparent;transition:.12s;
+  display:flex;align-items:center;gap:7px;white-space:nowrap;
+}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.count{font-size:11px;font-weight:720;background:var(--sunk);color:var(--ink-2);border-radius:9px;padding:1px 6px}
+.tab.on .count{background:var(--accent);color:#fff}
+.dbody{padding:18px clamp(16px,2.2vw,28px) 70px}
+.panel{display:none}
+.panel.on{display:block}
+
+/* KR cards */
+.krbar{display:flex;align-items:center;gap:9px;margin-bottom:12px;flex-wrap:wrap}
+.krbar-l{font-size:11px;font-weight:760;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.kr{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:15px 17px;margin-bottom:9px;transition:.12s;
+}
+.kr:hover{border-color:var(--border-2)}
+.kr-h{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.kr-n{font-size:15px;font-weight:650;letter-spacing:-.012em}
+.kr-d{font-size:12.5px;color:var(--ink-2);margin-top:5px;padding-left:9px;border-left:2px solid var(--border-2)}
+.kr-m{font-size:12px;color:var(--ink-3);margin-top:4px}
+.kr-pw{flex:none;text-align:right}
+@media(max-width:520px){.kr-pw{text-align:left}}
+.kr-p{font-size:19px;font-weight:740;font-variant-numeric:tabular-nums;letter-spacing:-.025em}
+.kr-pg{font-size:11px;font-weight:620;color:var(--ink-3);margin-top:1px}
+.kbar{height:6px;border-radius:3px;background:var(--sunk);margin:12px 0;position:relative}
+.kbar i{display:block;height:100%;border-radius:3px}
+.kvals{display:flex;justify-content:space-between;align-items:flex-end;gap:16px}
+.kv-l{font-size:9.5px;font-weight:760;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.kv-v{font-size:16px;font-weight:690;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.kv-r{text-align:right}
+.kr-bottom{
+  display:flex;align-items:center;gap:8px;margin-top:13px;padding-top:12px;
+  border-top:1px solid var(--border);flex-wrap:wrap;
+}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;border-radius:8px;border:1px solid var(--border-2);
+  background:var(--surface);color:var(--ink);padding:6px 13px;font:inherit;font-size:13px;
+  font-weight:630;cursor:pointer;transition:.12s;white-space:nowrap;
+}
+.btn:hover{background:var(--soft)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:#443ab5}
+.btn-sm{padding:3.5px 9px;font-size:11.5px;border-radius:6px}
+.btn-danger{color:var(--red);border-color:#f3c9c7}
+.sp{flex:1}
+.notes-toggle{
+  background:none;border:none;font:inherit;font-size:12.5px;font-weight:630;color:var(--ink-2);
+  cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:0;white-space:nowrap;
+}
+.notes-toggle:hover{color:var(--accent)}
+
+/* Notes + history */
+.note-form{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.note-in{
+  flex:1 1 240px;border:1px solid var(--border-2);border-radius:8px;padding:9px 12px;font:inherit;
+  font-size:13.5px;resize:vertical;min-height:38px;background:var(--surface);color:var(--ink);
+}
+.note-in:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.note{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 15px;margin-bottom:8px}
+.note-m{display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-bottom:4px;flex-wrap:wrap}
+.note-a{font-weight:670}
+.note-t{color:var(--ink-3)}
+.note-x{font-size:13.5px;color:var(--ink-2)}
+.sec-l{font-size:11px;font-weight:760;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:20px 0 10px}
+.hwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:var(--r);background:var(--surface)}
+.hist{min-width:520px}
+.hrow{display:grid;grid-template-columns:1fr 130px 110px 90px;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);font-size:13px;align-items:center}
+.hrow:last-child{border:none}
+.hrow.head{background:var(--soft);font-size:10.5px;font-weight:740;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.hnum{text-align:right;font-variant-numeric:tabular-nums;font-weight:650}
+.up{color:var(--green);font-weight:670;text-align:right;font-variant-numeric:tabular-nums}
+.hint{
+  background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:var(--r);
+  padding:11px 14px;font-size:12.5px;color:var(--ink-2);margin-bottom:16px;
+}
+.hint b{color:var(--ink)}
+
+/* ══ RESPONSIVE ══════════════════════════ */
+.scrim{
+  display:none;position:fixed;inset:var(--header-h) 0 0;background:rgba(20,23,33,.42);
+  z-index:28;opacity:0;transition:opacity .18s;
+}
+.scrim.on{display:block;opacity:1}
+
+/* Tablet — drawer becomes an overlay you summon */
+@media(max-width:1023px){
+  .burger{display:inline-flex}
+  .drawer{
+    position:fixed;top:var(--header-h);bottom:0;left:0;width:min(340px,86vw);z-index:30;
+    transform:translateX(-102%);transition:transform .2s cubic-bezier(.4,0,.2,1);
+    box-shadow:0 8px 34px rgba(20,23,33,.14);
+  }
+  .drawer.open{transform:none}
+  .hdr-search{display:none}
+}
+
+/* Phone — true master/detail: one pane at a time */
+@media(max-width:640px){
+  :root{--header-h:52px}
+  html,body{overflow-x:hidden}
+  .wordmark{display:none}
+  .hdr{gap:6px;padding:0 8px}
+  .hdr-qtr{margin-left:0;font-size:12.5px;padding:5px 22px 5px 8px}
+  .hb{min-width:32px;height:32px;padding:0 6px}
+  .hdr-div{margin:0 1px}
+  /* Secondary destinations move into the hamburger menu on phones */
+  .hb-opt{display:none}
+  .drawer{
+    position:static;transform:none;width:100%;box-shadow:none;border-right:none;
+    display:flex;
+  }
+  .body.showing-detail .drawer{display:none}
+  .detail{display:none}
+  .body.showing-detail .detail{display:block}
+  .scrim{display:none!important}
+  .back{display:inline-flex}
+  .stats{grid-template-columns:repeat(4,1fr);gap:6px}
+  .st-v{font-size:16px}
+  .kvals{gap:12px}
+  .kr{padding:13px 14px}
+  .kr-bottom .btn-sm{flex:1 1 auto;justify-content:center}
+  /* The active tab already says "Key Results" — drop the duplicate label */
+  .krbar-l{display:none}
+  .krbar{gap:6px}
+  .krbar .btn-sm{flex:1 1 auto;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <button class="hb burger" onclick="toggleDrawer()" aria-label="Objectives">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+  <div class="brand">
+    <span class="logo">U</span>
+    <span class="wordmark">OKR Tracker</span>
+  </div>
+  <select class="hdr-qtr"><option>2026-Q3</option><option>2026-Q2</option><option>2026-Q4</option></select>
+
+  <div class="hdr-spacer"></div>
+
+  <input class="hdr-search" placeholder="Search objectives, key results, owners…">
+
+  <nav class="hdr-nav">
+    <button class="hb on hb-opt" title="Objectives">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      <span class="hb-label">Objectives</span>
+    </button>
+    <button class="hb hb-opt" title="Email Reports">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+      <span class="hb-label">Reports</span>
+    </button>
+    <button class="hb hb-opt" title="Admin">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span class="hb-label">Admin</span>
+    </button>
+    <span class="hdr-div hb-opt"></span>
+    <button class="hb hb-opt" title="Refresh data">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+    </button>
+    <button class="hb" title="Recent activity">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      <span class="hb-badge">6</span>
+    </button>
+    <button class="hb" title="Settings">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V15z"/></svg>
+    </button>
+    <span class="hdr-div"></span>
+    <button class="hdr-av" title="Jinesh Patel — Admin · Sign out">JP</button>
+  </nav>
+</header>
+
+<div class="scrim" id="scrim" onclick="toggleDrawer()"></div>
+
+<div class="body" id="body">
+  <aside class="drawer" id="drawer">
+    <div class="dw-top">
+      <div class="dw-title"><span>Objectives · 2026-Q3</span></div>
+      <div class="stats">
+        <div><div class="st-l">Total</div><div class="st-v">5</div></div>
+        <div><div class="st-l">Avg</div><div class="st-v">46%</div></div>
+        <div><div class="st-l">Done</div><div class="st-v" style="color:var(--green)">0</div></div>
+        <div><div class="st-l">Risk</div><div class="st-v" style="color:var(--red)">2</div></div>
+      </div>
+      <div class="timerow">
+        <div class="st-l">Quarter elapsed</div>
+        <div class="tbar"><i style="width:57%"></i></div>
+        <div class="tnote">Day 52 of 92 · 40 days left</div>
+      </div>
+    </div>
+    <div class="cats">
+      <button class="cchip on">All</button>
+      <button class="cchip"><i class="dot" style="background:#5145cd"></i>Corporate</button>
+      <button class="cchip"><i class="dot" style="background:#0e8a52"></i>Growth</button>
+      <button class="cchip"><i class="dot" style="background:#b0770b"></i>Operations</button>
+      <button class="cchip"><i class="dot" style="background:#0284c7"></i>Development</button>
+      <button class="cchip"><i class="dot" style="background:#c9302c"></i>Finance</button>
+    </div>
+    <div class="dw-scroll" id="rail"></div>
+    <div class="dw-foot">
+      <button class="add-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14"/></svg>New Objective</button>
+    </div>
+  </aside>
+
+  <main class="detail" id="detail"></main>
+</div>
+
+<script>
+const EL=57;
+const DATA=[
+ {t:'Improve device data quality across platform',d:'Establish a repeatable cleaning process so device records are trustworthy for billing and reporting.',cat:'Operations',c:'#b0770b',own:'Bill Hearne',
+  notes:[['Bill Hearne','Jul 16, 2026 20:48','Kickoff scheduled with the data team. Blocked on getting read access to the legacy device table.']],
+  krs:[
+   {n:'Device data cleaning to completion',desc:'Create and implement an AI-assisted cleaning process; redefine categories to reduce total count and improve consistency.',cur:'0',tgt:'1',p:0,own:'Bill',upd:'07/16/2026 20:48',notes:1},
+   {n:'New UI plan and deployment',desc:'Identify the best path and timeline to deploy the refreshed device management interface.',cur:'0',tgt:'1',p:0,own:'Bill',upd:'07/16/2026 20:48',notes:1}]},
+ {t:'Unify CRM and financial systems of record',d:'One source of truth across HubSpot and NetSuite so revenue reporting stops requiring manual reconciliation.',cat:'Corporate',c:'#5145cd',own:'Jinesh Patel',
+  notes:[['Jinesh Patel','Aug 19, 2026 09:12','Finance signed off on the field mapping. Dana is running the first migration batch this week.'],['Dana Whitfield','Aug 12, 2026 16:30','Found 340 duplicate company records — deduping before migration continues.']],
+  krs:[
+   {n:'Clean NetSuite and HubSpot',desc:'Clean HubSpot and NetSuite so that all data is aligned; fill in missing company records and assign owners.',cur:'50 %',tgt:'100 %',p:50,own:'Jinesh',upd:'07/20/2026 17:13',notes:1},
+   {n:'Migrate legacy billing records',desc:'Move all pre-2024 billing history into NetSuite with verified totals.',cur:'8,400',tgt:'12,000',p:70,own:'Dana',upd:'08/19/2026 11:04',notes:3}]},
+ {t:'Accelerate new logo acquisition',d:'Grow enterprise footprint with a repeatable outbound and demo motion.',cat:'Growth',c:'#0e8a52',own:'Amanda Beaty',
+  notes:[['Amanda Beaty','Aug 20, 2026 14:22','Northgate Dental Group signed. Two more in contract review.']],
+  krs:[
+   {n:'New enterprise accounts signed',desc:'',cur:'14',tgt:'25',p:56,own:'Amanda',upd:'08/20/2026 14:22',notes:5},
+   {n:'Qualified pipeline generated',desc:'Sourced and marketing-qualified pipeline entering stage 2 or later.',cur:'$1,850,000',tgt:'$3,000,000',p:62,own:'Marco',upd:'08/21/2026 08:40',notes:2},
+   {n:'Demo-to-close rate',desc:'',cur:'22 %',tgt:'35 %',p:63,own:'Amanda',upd:'08/18/2026 10:15',notes:0}]},
+ {t:'Ship the v3 practice dashboard',d:'Get the rebuilt dashboard in front of real customers and stabilise it before GA.',cat:'Development',c:'#0284c7',own:'Elice Waggoner',
+  notes:[['Elice Waggoner','Aug 20, 2026 17:05','Beta onboarding slower than planned — scheduling weekly office hours to unblock customers.']],
+  krs:[
+   {n:'Beta customers onboarded',desc:'',cur:'6',tgt:'20',p:30,own:'Elice',upd:'08/12/2026 13:50',notes:4},
+   {n:'P1 bugs open at launch',desc:'Decrease metric — fewer is better.',cur:'11',tgt:'3',p:45,own:'Raj',upd:'08/20/2026 19:30',notes:2}]},
+ {t:'Strengthen gross margin',d:'Improve unit economics through pricing discipline and infrastructure efficiency.',cat:'Finance',c:'#c9302c',own:'Jinesh Patel',
+  notes:[['Jinesh Patel','Aug 15, 2026 12:00','Renegotiated two vendor contracts — annualised saving of about $38k.']],
+  krs:[
+   {n:'Gross margin',desc:'',cur:'68 %',tgt:'74 %',p:92,own:'Jinesh',upd:'08/15/2026 12:00',notes:2},
+   {n:'Annual cloud spend reduction',desc:'Run-rate reduction realised against the January baseline.',cur:'$42,000',tgt:'$120,000',p:35,own:'Dana',upd:'08/08/2026 09:20',notes:1}]},
+];
+const H=p=>p>=EL-8?['st-on','On Track','var(--green)']:p>=EL-25?['st-risk','At Risk','var(--amber)']:['st-off','Off Track','var(--red)'];
+const avgOf=o=>Math.round(o.krs.reduce((s,k)=>s+k.p,0)/o.krs.length);
+let cur=1;
+const isPhone=()=>window.matchMedia('(max-width:640px)').matches;
+
+function toggleDrawer(){
+  const d=document.getElementById('drawer'),s=document.getElementById('scrim');
+  const open=d.classList.toggle('open'); s.classList.toggle('on',open);
+}
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('scrim').classList.remove('on');
+}
+function showList(){document.getElementById('body').classList.remove('showing-detail')}
+
+function drawRail(){
+  document.getElementById('rail').innerHTML=DATA.map((o,i)=>{
+    const a=avgOf(o),[sc,sl,col]=H(a);
+    return `<div class="oitem ${i===cur?'sel':''}" onclick="pick(${i})" draggable="true">
+      <span class="grip"><svg width="10" height="14" viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="3" r="1.3"/><circle cx="8" cy="3" r="1.3"/><circle cx="2" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="2" cy="13" r="1.3"/><circle cx="8" cy="13" r="1.3"/></svg></span>
+      <div class="oi-h"><span class="oi-t">${o.t}</span><span class="oi-p" style="color:${col}">${a}%</span></div>
+      <div class="oi-m"><span><i class="dot" style="background:${o.c}"></i>${o.cat}</span><span>·</span><span>${o.krs.length} KR</span><span class="oi-badge ${sc}">${sl}</span></div>
+      <div class="obar"><i style="width:${Math.min(a,100)}%;background:${col}"></i><span class="omark" style="left:${EL}%"></span></div>
+    </div>`}).join('');
+}
+function pick(i){
+  cur=i;drawRail();drawDetail();closeDrawer();
+  document.getElementById('body').classList.add('showing-detail');
+  document.getElementById('detail').scrollTop=0;
+}
+function tab(n){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('on',i===n));
+  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('on',i===n));
+}
+function drawDetail(){
+  const o=DATA[cur],a=avgOf(o),[sc,sl,col]=H(a),gap=a-EL;
+  const totalNotes=o.krs.reduce((s,k)=>s+k.notes,0)+o.notes.length;
+  document.getElementById('detail').innerHTML=`
+  <div class="dhead">
+    <button class="back" onclick="showList()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m15 18-6-6 6-6"/></svg>All objectives</button>
+    <div class="dtop">
+      <div class="dmain">
+        <div class="dtags">
+          <span class="tag"><i class="dot" style="background:${o.c}"></i>${o.cat}</span>
+          <span class="state ${sc}">${sl}</span>
+          <span class="tag">${o.own}</span>
+        </div>
+        <h1 class="dh1">${o.t}</h1>
+        <p class="ddesc">${o.d}</p>
+      </div>
+      <div class="dright">
+        <div class="dpct" style="color:${col}">${a}%</div>
+        <div class="ddelta" style="color:${gap<0?'var(--red)':'var(--green)'}">${gap>=0?'+':''}${gap} pts vs. pace</div>
+        <div class="dbar"><i style="width:${Math.min(a,100)}%;background:${col}"></i><span class="dmark" style="left:${EL}%"></span></div>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" onclick="tab(0)">Key Results <span class="count">${o.krs.length}</span></button>
+      <button class="tab" onclick="tab(1)">Notes <span class="count">${totalNotes}</span></button>
+      <button class="tab" onclick="tab(2)">History</button>
+    </div>
+  </div>
+  <div class="dbody">
+    <div class="panel on">
+      <div class="hint"><b>Responsive:</b> resize the window — below 1024px the objective drawer becomes a slide-over from the header button; below 640px it becomes a full-screen list with a back button, and the KR cards stack.</div>
+      <div class="krbar">
+        <span class="krbar-l">Key Results</span>
+        <span class="sp"></span>
+        <button class="btn btn-primary"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14"/></svg>Key Result</button>
+        <button class="btn btn-sm">Edit</button><button class="btn btn-sm">Move</button><button class="btn btn-sm btn-danger">Delete</button>
+      </div>
+      ${o.krs.map(k=>{const [kc,kl,kcol]=H(k.p),kg=k.p-EL;return `
+      <div class="kr">
+        <div class="kr-h">
+          <div style="min-width:0;flex:1 1 220px">
+            <div class="kr-n">${k.n}</div>
+            <div class="kr-m">${k.own} · updated ${k.upd}</div>
+            ${k.desc?`<div class="kr-d">${k.desc}</div>`:''}
+          </div>
+          <div class="kr-pw"><div class="kr-p" style="color:${kcol}">${k.p}%</div><div class="kr-pg">${kg<0?`${Math.abs(kg)} behind`:`${kg} ahead`}</div></div>
+        </div>
+        <div class="kbar"><i style="width:${Math.min(k.p,100)}%;background:${kcol}"></i><span class="dmark" style="left:${EL}%"></span></div>
+        <div class="kvals">
+          <div><div class="kv-l">Current</div><div class="kv-v">${k.cur}</div></div>
+          <div class="kv-r"><div class="kv-l">Target</div><div class="kv-v">${k.tgt}</div></div>
+        </div>
+        <div class="kr-bottom">
+          <button class="btn btn-primary"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-11 11M22 2l-7 20-4-9-9-4Z"/></svg>Submit Update</button>
+          <button class="notes-toggle"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Notes (${k.notes})</button>
+          <span class="sp"></span>
+          <button class="btn btn-sm">Edit</button>
+          <button class="btn btn-sm btn-danger">Delete</button>
+        </div>
+      </div>`}).join('')}
+    </div>
+
+    <div class="panel">
+      <div class="note-form">
+        <textarea class="note-in" placeholder="Add a note to this objective…"></textarea>
+        <button class="btn btn-primary">Add</button>
+      </div>
+      ${o.notes.map(n=>`<div class="note"><div class="note-m"><span class="note-a">${n[0]}</span><span class="note-t">${n[1]}</span></div><div class="note-x">${n[2]}</div></div>`).join('')}
+      <div class="sec-l">Key Result Notes</div>
+      <div class="note"><div class="note-m"><span class="note-a">${o.krs[0].own}</span><span class="note-t">${o.krs[0].upd}</span></div><div class="note-x" style="color:var(--ink-3);font-size:12px;margin-bottom:4px">on <b style="color:var(--ink)">${o.krs[0].n}</b></div><div class="note-x">Progress is tracking, will have an update by end of week.</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="hwrap"><div class="hist">
+        <div class="hrow head"><span>Key Result</span><span class="hnum">When</span><span class="hnum">Value</span><span class="hnum">Change</span></div>
+        <div class="hrow"><span>${o.krs[0].n}</span><span class="hnum">${o.krs[0].upd.split(' ')[0]}</span><span class="hnum">${o.krs[0].cur}</span><span class="up">—</span></div>
+        <div class="hrow"><span>${o.krs[o.krs.length-1].n}</span><span class="hnum">Aug 14, 2026</span><span class="hnum">${o.krs[o.krs.length-1].cur}</span><span class="up">▲ 6%</span></div>
+        <div class="hrow"><span>${o.krs[o.krs.length-1].n}</span><span class="hnum">Aug 07, 2026</span><span class="hnum">—</span><span class="up">▲ 4%</span></div>
+        <div class="hrow"><span>${o.krs[0].n}</span><span class="hnum">Jul 31, 2026</span><span class="hnum">—</span><span class="up">▲ 2%</span></div>
+      </div></div>
+    </div>
+  </div>`;
+}
+drawRail();drawDetail();
+// On phones, start on the list; on wider screens both panes are visible anyway.
+if(!isPhone()) document.getElementById('body').classList.add('showing-detail');
+window.addEventListener('resize',()=>{
+  if(!isPhone()){closeDrawer();document.getElementById('body').classList.add('showing-detail')}
+});
+</script>
+</body>
+</html>

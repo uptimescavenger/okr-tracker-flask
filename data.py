@@ -363,3 +363,52 @@ def progress_color(pct: float) -> str:
     if pct >= 40:
         return "#f59e0b"
     return "#ef4444"
+
+
+# Health is progress measured against how much of the quarter has gone by, not
+# against a fixed threshold. 50% is healthy in week 2 and alarming in week 12.
+HEALTH_ON = "on"
+HEALTH_RISK = "risk"
+HEALTH_OFF = "off"
+
+_HEALTH_LABELS = {
+    HEALTH_ON: "On Track",
+    HEALTH_RISK: "At Risk",
+    HEALTH_OFF: "Off Track",
+}
+_HEALTH_COLORS = {
+    HEALTH_ON: "#0e8a52",
+    HEALTH_RISK: "#b0770b",
+    HEALTH_OFF: "#c9302c",
+}
+
+
+def health_for(pct: float, elapsed: float) -> dict:
+    """Classify progress against elapsed quarter time.
+
+    Within 8 points of pace (or ahead) is On Track; up to 25 behind is At Risk;
+    further behind is Off Track. A completed key result is always On Track.
+    """
+    try:
+        pct = float(pct)
+    except (TypeError, ValueError):
+        pct = 0.0
+    try:
+        elapsed = float(elapsed)
+    except (TypeError, ValueError):
+        elapsed = 0.0
+
+    if pct >= 100:
+        key = HEALTH_ON
+    elif pct >= elapsed - 8:
+        key = HEALTH_ON
+    elif pct >= elapsed - 25:
+        key = HEALTH_RISK
+    else:
+        key = HEALTH_OFF
+    return {
+        "key": key,
+        "label": _HEALTH_LABELS[key],
+        "color": _HEALTH_COLORS[key],
+        "delta": int(round(pct - elapsed)),
+    }

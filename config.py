@@ -66,6 +66,44 @@ def quarter_list(start_year: int = 2024) -> list[str]:
     return list(_quarter_list_for(_today_key(), start_year))
 
 
+def quarter_pace(quarter: str) -> dict:
+    """How far through `quarter` we are today.
+
+    Powers the "pace marker" in the UI: a key result at 40% in week 2 is fine,
+    the same 40% in week 12 is not. Returns elapsed percent plus the day counts
+    so the drawer can show "Day 52 of 92".
+    For a past quarter this is 100%; for a future quarter, 0%.
+    """
+    try:
+        y_str, q_str = quarter.split("-Q")
+        y, q = int(y_str), int(q_str)
+    except (ValueError, AttributeError):
+        return {"elapsed": 0, "day": 0, "total": 0, "remaining": 0, "active": False}
+
+    start_month = (q - 1) * 3 + 1
+    start = date(y, start_month, 1)
+    if q == 4:
+        end = date(y + 1, 1, 1)
+    else:
+        end = date(y, start_month + 3, 1)
+
+    total = (end - start).days
+    today = date.today()
+    if today < start:
+        return {"elapsed": 0, "day": 0, "total": total, "remaining": total, "active": False}
+    if today >= end:
+        return {"elapsed": 100, "day": total, "total": total, "remaining": 0, "active": False}
+
+    day = (today - start).days + 1
+    return {
+        "elapsed": int(round(day / total * 100)),
+        "day": day,
+        "total": total,
+        "remaining": total - day,
+        "active": True,
+    }
+
+
 # ---------- Sheet tab naming ----------
 def okr_tab_name(quarter: str) -> str:
     return f"OKRs {quarter}"

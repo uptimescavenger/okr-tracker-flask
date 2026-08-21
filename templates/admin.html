@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
 {% block body %}
-<div class="app-layout">
-  {% with active_page='admin' %}
-  {% include "partials/sidebar.html" %}
-  {% endwith %}
+{% with active_page='admin' %}
+{% include "partials/header.html" %}
+{% endwith %}
 
-  <main class="main-content">
+<div class="page-shell">
+  <main class="page-main">
     <div class="admin-header">
       <div>
         <h2 style="color:var(--text-primary);margin-bottom:4px;">User Management</h2>

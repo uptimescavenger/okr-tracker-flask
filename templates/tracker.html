@@ -1,110 +1,87 @@
 {% extends "base.html" %}
 
 {% block body %}
-<div class="app-layout">
-  {% with active_page='tracker' %}
-  {% include "partials/sidebar.html" %}
-  {% endwith %}
+{% with active_page='tracker' %}
+{% include "partials/header.html" %}
+{% endwith %}
 
-  <main class="main-content">
-    <!-- Recent Activity drawer (right side, toggleable) -->
-    <button class="activity-toggle" id="activityToggle" onclick="toggleActivityDrawer()" title="Recent activity">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      Activity
-      {% if activity and activity|length > 0 %}<span class="activity-toggle-count">{{ activity|length }}</span>{% endif %}
-    </button>
+<div class="shell" id="shell">
 
-    <aside class="activity-drawer" id="activityDrawer">
-      <div class="activity-drawer-header">
-        <span class="activity-drawer-title">Recent Activity</span>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="activity-drawer-count">{{ activity|length if activity else 0 }}</span>
-          <button class="btn-read-all" onclick="markActivityRead()" title="Mark all read">Read all</button>
-          <button class="activity-drawer-close" onclick="toggleActivityDrawer()" title="Hide">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+  <!-- ══ Objective drawer ═══════════════════════════════════ -->
+  <aside class="drawer" id="objDrawer">
+    <div class="dw-top">
+      <div class="dw-title">Objectives &middot; {{ quarter }}</div>
+      <div class="dw-stats">
+        <div><div class="dw-stat-l">Total</div><div class="dw-stat-v">{{ stats.total }}</div></div>
+        <div><div class="dw-stat-l">Avg</div><div class="dw-stat-v">{{ stats.avg_progress }}%</div></div>
+        <div><div class="dw-stat-l">Done</div><div class="dw-stat-v" style="color:var(--ok)">{{ stats.completed }}</div></div>
+        <div><div class="dw-stat-l">Risk</div><div class="dw-stat-v" style="color:{{ 'var(--bad)' if stats.at_risk > 0 else 'var(--ink)' }}">{{ stats.at_risk }}</div></div>
+      </div>
+      {% if pace.total %}
+      <div class="dw-time">
+        <div class="dw-stat-l">Quarter elapsed</div>
+        <div class="tbar"><i style="width:{{ pace.elapsed }}%"></i></div>
+        <div class="dw-time-note">
+          {% if pace.active %}Day {{ pace.day }} of {{ pace.total }} &middot; {{ pace.remaining }} days left
+          {% elif pace.elapsed == 100 %}Quarter complete
+          {% else %}Starts soon &middot; {{ pace.total }} days{% endif %}
         </div>
       </div>
-      <div class="activity-drawer-body">
-        {% if not activity %}
-          <div class="activity-empty">No activity yet for this view.</div>
-        {% else %}
-          {% for a in activity %}
-          <div class="activity-item">
-            <div class="activity-row1">
-              <span class="activity-author">{{ a.author }}</span>
-              <span class="activity-time">{{ a.timestamp }}</span>
-            </div>
-            <div class="activity-action">
-              {{ a.verb }}
-              <span class="activity-tag">{{ a.target_label }}</span>
-              <strong>{{ a.target_name }}</strong>
-            </div>
-            {% if a.detail %}
-              <div class="activity-detail">{{ a.detail|truncate(140) }}</div>
-            {% endif %}
-          </div>
-          {% endfor %}
-        {% endif %}
-      </div>
-    </aside>
-
-    <!-- Filter bar -->
-    <div class="filter-bar">
-      <div class="filter-bar-inner">
-        <div>
-          <div class="filter-label">Quarter</div>
-          <select class="quarter-select" id="quarterSelect" onchange="changeQuarter(this.value)">
-            {% for q in quarter_list %}
-            <option value="{{ q }}" {{ 'selected' if q == quarter }}>{{ q }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div style="flex:1;">
-          <div class="filter-label">Dashboard</div>
-          <div class="category-pills">
-            {% for cat in allowed_categories %}
-            <button class="pill-btn {{ 'active' if cat == category }}"
-                    onclick="changeCategory('{{ cat }}')">
-              {% if cat != 'All' %}<span class="cat-dot cat-dot-{{ cat }}"></span>{% endif %}
-              {{ cat }}
-            </button>
-            {% endfor %}
-          </div>
-        </div>
-        <button class="btn btn-secondary" onclick="refreshData()" title="Refresh data">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-          Refresh
-        </button>
-      </div>
+      {% endif %}
     </div>
 
-    <!-- Page header -->
-    <h2 style="margin-bottom:2px;color:var(--text-primary);">{{ quarter }}</h2>
-    <p style="color:var(--text-muted);margin-bottom:20px;">Click an objective tab to view key results and progress.</p>
-
-    <!-- Metrics -->
-    <div class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-label">Objectives</div>
-        <div class="metric-value">{{ stats.total }}</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Avg Progress</div>
-        <div class="metric-value">{{ stats.avg_progress }}%</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Completed</div>
-        <div class="metric-value" style="color:var(--success)">{{ stats.completed }}</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">At Risk</div>
-        <div class="metric-value" style="color:{{ 'var(--danger)' if stats.at_risk > 0 else 'var(--text-primary)' }}">{{ stats.at_risk }}</div>
-      </div>
+    <div class="dw-cats">
+      {% for cat in allowed_categories %}
+      <button class="cchip {{ 'on' if cat == category }}" onclick="changeCategory('{{ cat }}')">
+        {% if cat != 'All' %}<span class="cdot cat-dot-{{ cat }}"></span>{% endif %}
+        {{ cat }}
+      </button>
+      {% endfor %}
     </div>
 
+    <div class="dw-list" id="objList">
+      {% for okr in okrs %}
+      <div class="oitem {{ 'sel' if loop.first }}" data-okr-idx="{{ loop.index0 }}" data-okr-id="{{ okr.id }}"
+           draggable="true" onclick="switchOkrTab({{ loop.index0 }})">
+        <span class="grip" title="Drag to reorder">
+          <svg width="10" height="14" viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="3" r="1.3"/><circle cx="8" cy="3" r="1.3"/><circle cx="2" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="2" cy="13" r="1.3"/><circle cx="8" cy="13" r="1.3"/></svg>
+        </span>
+        <div class="oi-head">
+          <span class="oi-title">{{ okr.title }}</span>
+          <span class="oi-pct" style="color:{{ okr.health.color }}">{{ okr.progress }}%</span>
+        </div>
+        <div class="oi-meta">
+          {% if okr.category %}<span><span class="cdot" style="background:{{ okr.cat_color }}"></span>{{ okr.category }}</span><span>&middot;</span>{% endif %}
+          <span>{{ okr.krs|length }} KR</span>
+          <span class="hbadge h-{{ okr.health.key }}">{{ okr.health.label }}</span>
+        </div>
+        <div class="obar">
+          <i style="width:{{ [okr.progress, 100]|min }}%;background:{{ okr.health.color }}"></i>
+          {% if pace.active %}<span class="pacemark" style="left:{{ pace.elapsed }}%"></span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      {% if okrs|length == 0 %}
+      <div class="dw-empty">No objectives in this view.</div>
+      {% endif %}
+    </div>
+
+    {% if auth.can_create_okr() %}
+    <div class="dw-foot">
+      <button class="add-obj" onclick="openAddOkrModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Objective
+      </button>
+    </div>
+    {% endif %}
+  </aside>
+
+  <div class="drawer-scrim" id="drawerScrim" onclick="closeDrawer()"></div>
+
+  <!-- ══ Detail pane ════════════════════════════════════════ -->
+  <main class="detail" id="detailPane">
     {% if okrs|length == 0 %}
-    <div class="empty-state">
+    <div class="empty-state" style="margin:40px auto;max-width:520px;">
       <h3>No objectives yet</h3>
       <p>Create your first objective to start tracking progress.</p>
       {% if auth.can_create_okr() %}
@@ -114,164 +91,142 @@
       </button>
       {% endif %}
     </div>
-    {% else %}
+    {% endif %}
 
-    <!-- OKR Tabs -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
-      <div class="okr-tabs" id="okrTabs">
-        {% for okr in okrs %}
-        <button class="okr-tab {{ 'active' if loop.first }}" data-okr-idx="{{ loop.index0 }}" data-okr-id="{{ okr.id }}" draggable="true" onclick="switchOkrTab({{ loop.index0 }})">
-          <span class="progress-dot" style="background:{{ okr.cat_color }}"></span>
-          {{ okr.title|truncate(30) }}
-        </button>
-        {% endfor %}
-      </div>
-      {% if auth.can_create_okr() %}
-      <button class="btn btn-primary btn-action-lg" onclick="openAddOkrModal()" style="white-space:nowrap;margin-left:12px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add Objective
-      </button>
-      {% endif %}
-    </div>
-
-    <!-- OKR Cards -->
     {% for okr in okrs %}
-    <div class="okr-card" id="okrCard{{ loop.index0 }}" data-okr-idx="{{ loop.index0 }}" data-okr-id="{{ okr.id }}" style="{{ '' if loop.first else 'display:none;' }}">
-      <div class="okr-header">
-        <div>
-          <div class="okr-title">{{ okr.title }}</div>
-          {% if okr.description %}
-          <p style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">{{ okr.description }}</p>
-          {% endif %}
-        </div>
-        <div class="okr-pct" style="color:{{ okr.color }}">{{ okr.progress }}%</div>
-      </div>
+    <section class="okr-card" id="okrCard{{ loop.index0 }}" data-okr-idx="{{ loop.index0 }}" data-okr-id="{{ okr.id }}"
+             style="{{ '' if loop.first else 'display:none;' }}">
+      {% set okr_idx = loop.index0 %}
 
-      <div class="okr-progress-bar">
-        <div class="progress-bar">
-          <div class="progress-fill" style="width:{{ [okr.progress, 100]|min }}%;background:{{ okr.color }}"></div>
-        </div>
-      </div>
-
-      <div class="okr-pills">
-        {% if okr.owner %}
-        <span class="info-pill pill-owner">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          {{ okr.owner }}
-        </span>
-        {% endif %}
-        {% if okr.category %}
-        <span class="info-pill pill-category">
-          <span class="cat-dot cat-dot-{{ okr.category }}"></span>
-          {{ okr.category }}
-        </span>
-        {% endif %}
-        {% if okr.target_date %}
-        <span class="info-pill pill-date">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          {{ okr.target_date }}
-        </span>
-        {% endif %}
-        {% if okr.last_updated %}
-        <span class="info-pill pill-updated">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          {{ okr.last_updated }}
-        </span>
-        {% endif %}
-        {% if auth.can_create_kr_in_category(okr.category) %}
-        <button class="btn btn-primary btn-action-lg pills-action" onclick="openAddKrModal('{{ okr.id }}', '{{ okr.category }}')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Key Result
+      <div class="okr-head">
+        <button class="back-to-list" onclick="showObjectiveList()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m15 18-6-6 6-6"/></svg>
+          All objectives
         </button>
-        {% endif %}
-      </div>
 
-      {% if auth.can_edit_okr() or auth.can_delete_okr(okr.category) %}
-      <div class="okr-actions">
-        {% if auth.can_edit_okr() %}
-        <button class="btn btn-secondary btn-sm" onclick='openEditOkrModal({{ okr|tojson }})'>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-          Edit
-        </button>
-        <button class="btn btn-secondary btn-sm" onclick='openMoveOkrModal("{{ okr.id }}", "{{ quarter }}")'>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
-          Move
-        </button>
-        {% endif %}
-        {% if auth.can_delete_okr(okr.category) %}
-        <button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:#fecaca;" onclick="deleteOkr('{{ okr.id }}', '{{ quarter }}', '{{ okr.category }}')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          Delete
-        </button>
-        {% endif %}
-      </div>
-      {% endif %}
-
-      <!-- Key Results -->
-      <div class="kr-section">
-        <div class="kr-section-header">
-          <span class="kr-section-title">Key Results ({{ okr.krs|length }})</span>
-        </div>
-
-        {% if okr.krs|length == 0 %}
-        <div class="empty-state" style="padding:24px;">
-          <p>No key results yet. Add one to start tracking.</p>
-        </div>
-        {% endif %}
-
-        {% for kr in okr.krs %}
-        <div class="kr-card">
-          <div class="kr-header">
-            <div class="kr-name">{{ kr.name }}</div>
-            <div class="kr-pct" style="color:{{ kr.color }}">{{ kr.achievement }}%</div>
-          </div>
-
-          <div class="kr-subtitle">
-            {{ kr.current_display }} / {{ kr.target_display }}
-            {% if kr.owner %} &bull; {{ kr.owner }}{% endif %}
-            {% if kr.last_updated %} &bull; Updated: {{ kr.last_updated }}{% endif %}
-          </div>
-
-          {% if kr.description %}
-          <div class="kr-description">{{ kr.description }}</div>
-          {% endif %}
-
-          <div class="progress-bar sm">
-            <div class="progress-fill" style="width:{{ [kr.achievement, 100]|min }}%;background:{{ kr.color }}"></div>
-          </div>
-
-          <div class="kr-metrics">
-            <div class="kr-metric">
-              <div class="kr-metric-label">Current</div>
-              <div class="kr-metric-value">{{ kr.current_display }}</div>
+        <div class="okr-head-top">
+          <div class="okr-head-main">
+            <div class="okr-tags">
+              {% if okr.category %}
+              <span class="tag"><span class="cdot" style="background:{{ okr.cat_color }}"></span>{{ okr.category }}</span>
+              {% endif %}
+              <span class="hbadge h-{{ okr.health.key }}">{{ okr.health.label }}</span>
+              {% if okr.owner %}<span class="tag">{{ okr.owner }}</span>{% endif %}
+              {% if okr.target_date %}<span class="tag">Due {{ okr.target_date }}</span>{% endif %}
             </div>
-            <div class="kr-metric">
-              <div class="kr-metric-label">Target</div>
-              <div class="kr-metric-value">{{ kr.target_display }}</div>
+            <h1 class="okr-h1">{{ okr.title }}</h1>
+            {% if okr.description %}<p class="okr-desc">{{ okr.description }}</p>{% endif %}
+          </div>
+
+          <div class="okr-head-score">
+            <div class="okr-pct" style="color:{{ okr.health.color }}">{{ okr.progress }}%</div>
+            {% if pace.active %}
+            <div class="okr-delta" style="color:{{ 'var(--bad)' if okr.health.delta < 0 else 'var(--ok)' }}">
+              {{ '+' if okr.health.delta >= 0 }}{{ okr.health.delta }} pts vs. pace
+            </div>
+            {% endif %}
+            <div class="bigbar">
+              <i style="width:{{ [okr.progress, 100]|min }}%;background:{{ okr.health.color }}"></i>
+              {% if pace.active %}<span class="pacemark labeled" style="left:{{ pace.elapsed }}%"></span>{% endif %}
             </div>
           </div>
+        </div>
 
-          <!-- Trend chart -->
-          {% if kr.has_trend %}
-          <div class="chart-container" id="chart_{{ kr.id }}"></div>
-          {% endif %}
+        <div class="okr-tabs">
+          <button class="otab on" onclick="switchOkrPanel(this, {{ okr_idx }}, 0)">
+            Key Results <span class="otab-count">{{ okr.krs|length }}</span>
+          </button>
+          <button class="otab" onclick="switchOkrPanel(this, {{ okr_idx }}, 1)">
+            Notes <span class="otab-count">{{ okr.notes|length }}</span>
+          </button>
+          <button class="otab" onclick="switchOkrPanel(this, {{ okr_idx }}, 2)">
+            History <span class="otab-count">{{ okr.history|length }}</span>
+          </button>
+        </div>
+      </div>
 
-          <div class="kr-actions">
-            {% if auth.can_update_kr() %}
-            <button class="btn btn-primary btn-action-lg" onclick='openUpdateKrModal({{ kr|tojson }})'>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              Submit Update
+      <div class="okr-body">
+
+        <!-- ── Panel 0: Key Results ───────────────────── -->
+        <div class="opanel on" data-panel="0" data-okr-panel="{{ okr_idx }}">
+          <div class="kr-toolbar">
+            <span class="kr-toolbar-l">Key Results</span>
+            <span class="flex-sp"></span>
+            {% if auth.can_create_kr_in_category(okr.category) %}
+            <button class="btn btn-primary" onclick="openAddKrModal('{{ okr.id }}', '{{ okr.category }}')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Key Result
             </button>
+            {% endif %}
+            {% if auth.can_edit_okr() %}
+            <button class="btn btn-sm" onclick='openEditOkrModal({{ okr|tojson }})'>Edit</button>
+            <button class="btn btn-sm" onclick='openMoveOkrModal("{{ okr.id }}", "{{ quarter }}")'>Move</button>
+            {% endif %}
+            {% if auth.can_delete_okr(okr.category) %}
+            <button class="btn btn-sm btn-danger" onclick="deleteOkr('{{ okr.id }}', '{{ quarter }}', '{{ okr.category }}')">Delete</button>
             {% endif %}
           </div>
 
-          <!-- Notes -->
-          <div class="notes-section">
-            <button class="notes-toggle" onclick="toggleNotes(this)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              Notes ({{ kr.notes|length }})
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-arrow"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
+          {% if okr.krs|length == 0 %}
+          <div class="empty-state" style="padding:28px;">
+            <p>No key results yet. Add one to start tracking.</p>
+          </div>
+          {% endif %}
+
+          {% for kr in okr.krs %}
+          <div class="kr-card">
+            <div class="kr-top">
+              <div class="kr-top-main">
+                <div class="kr-name">{{ kr.name }}</div>
+                <div class="kr-meta">
+                  {% if kr.owner %}{{ kr.owner }} &middot; {% endif %}
+                  {% if kr.last_updated %}updated {{ kr.last_updated }}{% else %}not yet updated{% endif %}
+                </div>
+                {% if kr.description %}<div class="kr-desc">{{ kr.description }}</div>{% endif %}
+              </div>
+              <div class="kr-score">
+                <div class="kr-pct" style="color:{{ kr.health.color }}">{{ kr.achievement }}%</div>
+                {% if pace.active %}
+                <div class="kr-delta">{{ kr.health.delta|abs }} pts {{ 'behind' if kr.health.delta < 0 else 'ahead' }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="kbar">
+              <i style="width:{{ [kr.achievement, 100]|min }}%;background:{{ kr.health.color }}"></i>
+              {% if pace.active %}<span class="pacemark labeled" style="left:{{ pace.elapsed }}%"></span>{% endif %}
+            </div>
+
+            <div class="kr-values">
+              <div><div class="kv-l">Current</div><div class="kv-v">{{ kr.current_display }}</div></div>
+              <div class="kv-right"><div class="kv-l">Target</div><div class="kv-v">{{ kr.target_display }}</div></div>
+            </div>
+
+            {% if kr.has_trend %}
+            <div class="chart-container" id="chart_{{ kr.id }}"></div>
+            {% endif %}
+
+            <div class="kr-actions">
+              {% if auth.can_update_kr() %}
+              <button class="btn btn-primary" onclick='openUpdateKrModal({{ kr|tojson }})'>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Submit Update
+              </button>
+              {% endif %}
+              <button class="notes-toggle" onclick="toggleNotes(this)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Notes ({{ kr.notes|length }})
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-arrow"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <span class="flex-sp"></span>
+              {% if auth.can_edit_kr() %}
+              <button class="btn btn-sm" onclick='openEditKrModal({{ kr|tojson }})'>Edit</button>
+              {% endif %}
+              {% if auth.can_delete_kr(okr.category) %}
+              <button class="btn btn-sm btn-danger" onclick="deleteKr('{{ kr.id }}', '{{ kr.okr_id }}', '{{ quarter }}', '{{ okr.category }}')">Delete</button>
+              {% endif %}
+            </div>
+
             <div class="notes-list" style="display:none;">
               {% if auth.can_add_note() %}
               <div class="note-form">
@@ -288,59 +243,104 @@
                 <div class="note-text">{{ note.text }}</div>
               </div>
               {% endfor %}
+              {% if kr.notes|length == 0 %}
+              <div class="note-empty">No notes on this key result yet.</div>
+              {% endif %}
             </div>
           </div>
+          {% endfor %}
+        </div>
 
-          {% if auth.can_edit_kr() or auth.can_delete_kr(okr.category) %}
-          <div class="kr-secondary-actions">
-            {% if auth.can_edit_kr() %}
-            <button class="btn btn-secondary btn-action-sm" onclick='openEditKrModal({{ kr|tojson }})'>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-              Edit
-            </button>
-            {% endif %}
-            {% if auth.can_delete_kr(okr.category) %}
-            <button class="btn btn-secondary btn-action-sm" style="color:var(--danger);border-color:#fecaca;"
-                    onclick="deleteKr('{{ kr.id }}', '{{ kr.okr_id }}', '{{ quarter }}', '{{ okr.category }}')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              Delete
-            </button>
-            {% endif %}
+        <!-- ── Panel 1: Objective notes ───────────────── -->
+        <div class="opanel" data-panel="1" data-okr-panel="{{ okr_idx }}">
+          {% if auth.can_add_note() %}
+          <div class="note-form">
+            <textarea class="note-input" placeholder="Add a note to this objective..." rows="2" id="noteInput_OKR_{{ okr.id }}"></textarea>
+            <button class="btn btn-primary" onclick="addNote('OKR', '{{ okr.id }}', 'noteInput_OKR_{{ okr.id }}')">Add</button>
+          </div>
+          {% endif %}
+          {% for note in okr.notes %}
+          <div class="note-card">
+            <div class="note-meta">
+              <span class="note-author">{{ note.author }}</span>
+              <span class="note-timestamp">{{ note.timestamp }}</span>
+            </div>
+            <div class="note-text">{{ note.text }}</div>
+          </div>
+          {% endfor %}
+          {% if okr.notes|length == 0 %}
+          <div class="note-empty">No objective-level notes yet. Key result notes live on each card under the Key Results tab.</div>
+          {% endif %}
+        </div>
+
+        <!-- ── Panel 2: History ───────────────────────── -->
+        <div class="opanel" data-panel="2" data-okr-panel="{{ okr_idx }}">
+          {% if okr.history|length == 0 %}
+          <div class="note-empty">No recorded updates yet for this objective.</div>
+          {% else %}
+          <div class="hist-wrap">
+            <div class="hist">
+              <div class="hrow head">
+                <span>Key Result</span><span class="hnum">Date</span><span class="hnum">Value</span><span class="hnum">Change</span>
+              </div>
+              {% for h in okr.history %}
+              <div class="hrow">
+                <span class="hkr">{{ h.kr_name }}</span>
+                <span class="hnum">{{ h.date }}</span>
+                <span class="hnum">{{ h.value }}</span>
+                <span class="hnum {{ 'hup' if h.delta and h.delta > 0 }}{{ 'hdown' if h.delta and h.delta < 0 }}">
+                  {% if h.delta is none %}&mdash;
+                  {% elif h.delta > 0 %}&#9650; {{ h.delta }}
+                  {% elif h.delta < 0 %}&#9660; {{ h.delta|abs }}
+                  {% else %}0{% endif %}
+                </span>
+              </div>
+              {% endfor %}
+            </div>
           </div>
           {% endif %}
         </div>
-        {% endfor %}
 
-        <!-- OKR-level notes -->
-        <div class="notes-section" style="border-top:1px solid var(--border-default);padding-top:12px;margin-top:8px;">
-          <button class="notes-toggle" onclick="toggleNotes(this)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Objective Notes ({{ okr.notes|length }})
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-arrow"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="notes-list" style="display:none;">
-            {% if auth.can_add_note() %}
-            <div class="note-form">
-              <textarea class="note-input" placeholder="Add a note..." rows="1" id="noteInput_OKR_{{ okr.id }}"></textarea>
-              <button class="btn btn-primary btn-sm" onclick="addNote('OKR', '{{ okr.id }}', 'noteInput_OKR_{{ okr.id }}')">Add</button>
-            </div>
-            {% endif %}
-            {% for note in okr.notes %}
-            <div class="note-card">
-              <div class="note-meta">
-                <span class="note-author">{{ note.author }}</span>
-                <span class="note-timestamp">{{ note.timestamp }}</span>
-              </div>
-              <div class="note-text">{{ note.text }}</div>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
+      </div>
+    </section>
+    {% endfor %}
+  </main>
+
+  <!-- ══ Recent activity drawer ═════════════════════════════ -->
+  <aside class="activity-drawer" id="activityDrawer">
+    <div class="activity-drawer-header">
+      <span class="activity-drawer-title">Recent Activity</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="activity-drawer-count">{{ activity|length if activity else 0 }}</span>
+        <button class="btn-read-all" onclick="markActivityRead()" title="Mark all read">Read all</button>
+        <button class="activity-drawer-close" onclick="toggleActivityDrawer()" title="Hide">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
     </div>
-    {% endfor %}
-    {% endif %}
-  </main>
+    <div class="activity-drawer-body">
+      {% if not activity %}
+        <div class="activity-empty">No activity yet for this view.</div>
+      {% else %}
+        {% for a in activity %}
+        <div class="activity-item">
+          <div class="activity-row1">
+            <span class="activity-author">{{ a.author }}</span>
+            <span class="activity-time">{{ a.timestamp }}</span>
+          </div>
+          <div class="activity-action">
+            {{ a.verb }}
+            <span class="activity-tag">{{ a.target_label }}</span>
+            <strong>{{ a.target_name }}</strong>
+          </div>
+          {% if a.detail %}
+            <div class="activity-detail">{{ a.detail|truncate(140) }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </aside>
 </div>
 
 <!-- Add OKR Modal -->

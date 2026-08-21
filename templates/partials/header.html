@@ -1,0 +1,84 @@
+{# Top application bar. Replaces the old left sidebar: brand + quarter on the
+   left, every destination and account control on the right. On tablet the
+   burger toggles the objective drawer; on phones the secondary destinations
+   collapse into the account menu. #}
+<header class="appbar">
+  {% if active_page == 'tracker' %}
+  <button class="ab-btn ab-burger" onclick="toggleDrawer()" title="Objectives" aria-label="Toggle objectives">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+  {% endif %}
+
+  <a class="ab-brand" href="{{ url_for('tracker') }}">
+    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="" class="ab-logo">
+    <span class="ab-wordmark">OKR Tracker</span>
+  </a>
+
+  {% if active_page == 'tracker' %}
+  <select class="ab-quarter" id="quarterSelect" onchange="changeQuarter(this.value)" title="Quarter">
+    {% for q in quarter_list %}
+    <option value="{{ q }}" {{ 'selected' if q == quarter }}>{{ q }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+
+  <span class="ab-spacer"></span>
+
+  <nav class="ab-nav">
+    <a href="{{ url_for('tracker') }}" class="ab-btn ab-opt {{ 'on' if active_page == 'tracker' }}" title="OKR Tracker">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      <span class="ab-label">Objectives</span>
+    </a>
+    {% if auth.can_access_reports() %}
+    <a href="{{ url_for('email_panel') }}" class="ab-btn ab-opt {{ 'on' if active_page == 'email' }}" title="Email Reports">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+      <span class="ab-label">Reports</span>
+    </a>
+    {% endif %}
+    {% if auth.is_admin() %}
+    <a href="{{ url_for('admin_panel') }}" class="ab-btn ab-opt {{ 'on' if active_page == 'admin' }}" title="Admin">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span class="ab-label">Admin</span>
+    </a>
+    {% endif %}
+
+    {% if active_page == 'tracker' %}
+    <span class="ab-div ab-opt"></span>
+    <button class="ab-btn ab-opt" onclick="refreshData()" title="Refresh data">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+    </button>
+    <button class="ab-btn" id="activityToggle" onclick="toggleActivityDrawer()" title="Recent activity">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      {% if activity and activity|length > 0 %}<span class="ab-badge" id="activityBadge">{{ activity|length }}</span>{% endif %}
+    </button>
+    {% endif %}
+
+    <span class="ab-div"></span>
+    <a href="{{ url_for('account_settings') }}" class="ab-btn {{ 'on' if active_page == 'account' }}" title="Settings">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V15z"/></svg>
+    </a>
+
+    <div class="ab-account">
+      <button class="ab-avatar" onclick="toggleAccountMenu(event)" title="{{ auth.user_display_name() }} — {{ auth.user_role() }}">
+        {{ auth.user_display_name()|initials }}
+      </button>
+      <div class="ab-menu" id="accountMenu">
+        <div class="ab-menu-head">
+          <div class="ab-menu-name">{{ auth.user_display_name() }}</div>
+          <div class="ab-menu-role">{{ auth.user_role() }}</div>
+        </div>
+        {# These duplicate the icon row so nothing is unreachable on small screens. #}
+        <a class="ab-menu-item ab-menu-only" href="{{ url_for('tracker') }}">OKR Tracker</a>
+        {% if auth.can_access_reports() %}
+        <a class="ab-menu-item ab-menu-only" href="{{ url_for('email_panel') }}">Email Reports</a>
+        {% endif %}
+        {% if auth.is_admin() %}
+        <a class="ab-menu-item ab-menu-only" href="{{ url_for('admin_panel') }}">Admin</a>
+        {% endif %}
+        <a class="ab-menu-item" href="{{ url_for('account_settings') }}">Settings</a>
+        <a class="ab-menu-item danger" href="{{ url_for('logout') }}">Sign Out</a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="ab-menu-scrim" id="accountScrim" onclick="closeAccountMenu()"></div>

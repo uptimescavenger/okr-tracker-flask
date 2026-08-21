@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B — Executive Portfolio</title>
+<style>
+:root{
+  --bg:#f7f7f5; --surface:#fff; --surface-2:#faf9f7; --sunk:#f1f0ed;
+  --border:#e5e3de; --border-2:#d5d2cb;
+  --ink:#1c1b19; --ink-2:#57544e; --ink-3:#8f8b83;
+  --accent:#4f46e5; --accent-soft:#eef0fe;
+  --green:#0f8a4a; --green-soft:#e7f5ec;
+  --amber:#b3730a; --amber-soft:#fdf3e3;
+  --red:#c62f24; --red-soft:#fceeed;
+  --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;
+  background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased;
+}
+.shell{display:flex;min-height:100vh}
+
+/* ── Nav ─────────────────────────────────── */
+.nav{
+  width:216px;flex:none;background:var(--surface);border-right:1px solid var(--border);
+  padding:20px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;
+}
+.brand{display:flex;align-items:center;gap:9px;padding:0 8px;margin-bottom:26px}
+.brand-mark{width:28px;height:28px;border-radius:7px;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px}
+.brand-name{font-weight:680;font-size:14.5px;letter-spacing:-.01em}
+.nav-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);padding:0 8px;margin:16px 0 6px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:7px;
+  color:var(--ink-2);font-size:13.5px;font-weight:520;text-decoration:none;transition:.12s;
+}
+.nav-item:hover{background:var(--sunk);color:var(--ink)}
+.nav-item.active{background:var(--accent-soft);color:var(--accent);font-weight:620}
+.nav-foot{margin-top:auto;border-top:1px solid var(--border);padding-top:12px}
+.who{display:flex;align-items:center;gap:9px;padding:6px 8px}
+.who-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#9333ea);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none}
+.who-n{display:block;font-size:13px;font-weight:600;line-height:1.25}
+.who-r{display:block;font-size:11.5px;color:var(--ink-3)}
+
+/* ── Content ─────────────────────────────── */
+.content{flex:1;min-width:0;display:flex}
+.col{flex:1;min-width:0;padding:26px 28px 70px;max-width:1000px}
+
+.hero{margin-bottom:22px}
+.eyebrow{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);margin-bottom:6px}
+.h1{font-size:31px;font-weight:700;letter-spacing:-.028em;line-height:1.15}
+.hero-sub{color:var(--ink-2);font-size:14.5px;margin-top:5px}
+
+.headrow{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;gap:7px;border-radius:9px;border:1px solid var(--border-2);
+  background:var(--surface);color:var(--ink);padding:8px 15px;font:inherit;font-size:13.5px;
+  font-weight:600;cursor:pointer;transition:.12s;
+}
+.btn:hover{background:var(--surface-2)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:#4238d4}
+.btn-sm{padding:5px 11px;font-size:12.5px;border-radius:7px}
+
+/* ── Scoreboard ──────────────────────────── */
+.board{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:20px 22px;margin:20px 0 22px;
+}
+.board-top{display:flex;gap:34px;flex-wrap:wrap;margin-bottom:18px}
+.kpi-l{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3)}
+.kpi-v{font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums;margin-top:2px}
+.kpi-d{font-size:12px;color:var(--ink-3);margin-top:1px}
+.board-split{display:grid;grid-template-columns:1fr 1fr;gap:26px;padding-top:18px;border-top:1px solid var(--border)}
+@media(max-width:820px){.board-split{grid-template-columns:1fr}}
+.seg{display:flex;height:9px;border-radius:5px;overflow:hidden;gap:2px;margin:8px 0 8px}
+.seg span{display:block}
+.seg-key{display:flex;gap:16px;font-size:12.5px;color:var(--ink-2)}
+.seg-key i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:5px}
+.seg-key b{font-weight:700;font-variant-numeric:tabular-nums}
+.timeline{height:9px;border-radius:5px;background:var(--sunk);overflow:hidden;margin:8px 0 8px;position:relative}
+.timeline i{display:block;height:100%;background:var(--border-2)}
+.time-note{font-size:12.5px;color:var(--ink-2)}
+
+/* ── Filters ─────────────────────────────── */
+.filterbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.pill{
+  border:1px solid var(--border-2);background:var(--surface);border-radius:20px;
+  padding:5px 13px;font:inherit;font-size:13px;font-weight:560;color:var(--ink-2);cursor:pointer;transition:.12s;
+  display:inline-flex;align-items:center;gap:7px;
+}
+.pill:hover{background:var(--surface-2)}
+.pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none}
+.sp{flex:1}
+.sel{
+  appearance:none;border:1px solid var(--border-2);background:var(--surface);border-radius:9px;
+  padding:7px 30px 7px 13px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%238f8b83' stroke-width='2'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;
+}
+
+/* ── Objective card ──────────────────────── */
+.okr{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  margin-bottom:16px;overflow:hidden;
+}
+.okr-top{padding:18px 22px 16px;display:flex;gap:18px;align-items:flex-start}
+.okr-main{flex:1;min-width:0}
+.okr-tags{display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap}
+.tag{
+  font-size:11px;font-weight:680;padding:2px 8px;border-radius:5px;
+  background:var(--sunk);color:var(--ink-2);display:inline-flex;align-items:center;gap:5px;
+}
+.state{font-size:10.5px;font-weight:750;padding:2.5px 8px;border-radius:5px;text-transform:uppercase;letter-spacing:.05em}
+.st-on{background:var(--green-soft);color:var(--green)}
+.st-risk{background:var(--amber-soft);color:var(--amber)}
+.st-off{background:var(--red-soft);color:var(--red)}
+.okr-h{font-size:18.5px;font-weight:670;letter-spacing:-.019em;line-height:1.3}
+.okr-desc{font-size:13.5px;color:var(--ink-2);margin-top:5px;max-width:66ch}
+.okr-right{text-align:right;flex:none;min-width:132px}
+.big-pct{font-size:34px;font-weight:730;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums}
+.delta{font-size:12px;font-weight:600;margin-top:4px}
+.bigbar{height:8px;border-radius:4px;background:var(--sunk);margin-top:9px;position:relative;overflow:visible}
+.bigbar i{display:block;height:100%;border-radius:4px}
+.mark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.42;border-radius:1px}
+.mark::after{
+  content:'today';position:absolute;top:-15px;left:50%;transform:translateX(-50%);
+  font-size:9px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;
+}
+
+/* KR table */
+.krs{border-top:1px solid var(--border);background:var(--surface-2)}
+.krh{
+  display:grid;grid-template-columns:1fr 120px 130px 132px 76px;gap:14px;
+  padding:9px 22px;font-size:10.5px;font-weight:720;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--ink-3);border-bottom:1px solid var(--border);
+}
+.krh span:nth-child(n+2){text-align:right}
+.krh span:nth-child(4){text-align:left}
+.krow{
+  display:grid;grid-template-columns:1fr 120px 130px 132px 76px;gap:14px;align-items:center;
+  padding:13px 22px;border-bottom:1px solid var(--border);transition:.12s;
+}
+.krow:hover{background:var(--surface)}
+.krow:last-child{border-bottom:none}
+.kn{font-size:14px;font-weight:580;letter-spacing:-.008em}
+.kmeta{font-size:12px;color:var(--ink-3);margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.notepill{display:inline-flex;align-items:center;gap:4px;background:var(--sunk);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--ink-2)}
+.num{text-align:right;font-size:14.5px;font-weight:620;font-variant-numeric:tabular-nums;letter-spacing:-.015em}
+.num small{display:block;font-size:11.5px;font-weight:500;color:var(--ink-3);letter-spacing:0}
+.minibar{height:6px;border-radius:3px;background:var(--sunk);position:relative;overflow:visible}
+.minibar i{display:block;height:100%;border-radius:3px}
+.pcell{text-align:right;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.pace-note{font-size:11px;color:var(--ink-3);margin-top:4px;text-align:left}
+.krow-acts{display:flex;justify-content:flex-end;gap:6px}
+.icon-btn{
+  width:28px;height:28px;border-radius:7px;border:1px solid var(--border-2);background:var(--surface);
+  display:grid;place-items:center;cursor:pointer;color:var(--ink-2);transition:.12s;
+}
+.icon-btn:hover{background:var(--sunk);color:var(--ink)}
+.okr-foot{
+  display:flex;align-items:center;gap:9px;padding:13px 22px;background:var(--surface);
+  border-top:1px solid var(--border);flex-wrap:wrap;
+}
+.link{background:none;border:none;font:inherit;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;padding:0}
+.link:hover{text-decoration:underline}
+.muted-link{color:var(--ink-3)}
+
+/* ── Activity rail ───────────────────────── */
+.rail{
+  width:300px;flex:none;border-left:1px solid var(--border);background:var(--surface);
+  padding:22px 18px;position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+@media(max-width:1180px){.rail{display:none}}
+.rail-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.rail-t{font-size:13px;font-weight:700;letter-spacing:-.01em}
+.act{padding:11px 0;border-bottom:1px solid var(--border)}
+.act:last-child{border:none}
+.act-1{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;margin-bottom:3px}
+.act-a{font-weight:650}
+.act-t{color:var(--ink-3);font-size:11.5px;white-space:nowrap}
+.act-b{font-size:12.5px;color:var(--ink-2);line-height:1.45}
+.act-b b{color:var(--ink);font-weight:600}
+.tiny-tag{font-size:10px;font-weight:700;background:var(--sunk);color:var(--ink-2);border-radius:4px;padding:1px 5px;text-transform:uppercase;letter-spacing:.04em}
+.callout{
+  background:var(--accent-soft);border:1px solid #d9dcfd;border-radius:var(--r);
+  padding:12px 15px;font-size:12.5px;color:var(--ink-2);margin-bottom:20px;
+}
+.callout b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="nav">
+    <div class="brand"><span class="brand-mark">U</span><span class="brand-name">OKR Tracker</span></div>
+    <div class="nav-label">Workspace</div>
+    <a class="nav-item active"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Objectives</a>
+    <a class="nav-item"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>Email Reports</a>
+    <a class="nav-item"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin</a>
+    <div class="nav-label">Account</div>
+    <a class="nav-item"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V15z"/></svg>Settings</a>
+    <div class="nav-foot">
+      <div class="who"><span class="who-av">JP</span><span><span class="who-n">Jinesh Patel</span><span class="who-r">Admin</span></span></div>
+      <a class="nav-item"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>Sign Out</a>
+    </div>
+  </nav>
+
+  <div class="content">
+    <div class="col">
+      <div class="hero">
+        <div class="headrow">
+          <div>
+            <div class="eyebrow">Quarterly Objectives</div>
+            <h1 class="h1">2026-Q3</h1>
+            <p class="hero-sub">Five objectives · eleven key results · 40 days remaining</p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <select class="sel"><option>2026-Q3</option><option>2026-Q2</option></select>
+            <button class="btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>Refresh</button>
+            <button class="btn btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>New Objective</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="board">
+        <div class="board-top">
+          <div><div class="kpi-l">Objectives</div><div class="kpi-v">5</div><div class="kpi-d">across 5 categories</div></div>
+          <div><div class="kpi-l">Avg Progress</div><div class="kpi-v">46%</div><div class="kpi-d">expected 57% by today</div></div>
+          <div><div class="kpi-l">Completed</div><div class="kpi-v" style="color:var(--green)">0</div><div class="kpi-d">of 5 objectives</div></div>
+          <div><div class="kpi-l">At Risk</div><div class="kpi-v" style="color:var(--red)">2</div><div class="kpi-d">need attention now</div></div>
+        </div>
+        <div class="board-split">
+          <div>
+            <div class="kpi-l">Key Result Health</div>
+            <div class="seg">
+              <span style="background:var(--green);flex:5"></span>
+              <span style="background:var(--amber);flex:3"></span>
+              <span style="background:var(--red);flex:3"></span>
+            </div>
+            <div class="seg-key">
+              <span><i style="background:var(--green)"></i><b>5</b> On Track</span>
+              <span><i style="background:var(--amber)"></i><b>3</b> At Risk</span>
+              <span><i style="background:var(--red)"></i><b>3</b> Off Track</span>
+            </div>
+          </div>
+          <div>
+            <div class="kpi-l">Quarter Progress</div>
+            <div class="timeline"><i style="width:57%"></i></div>
+            <div class="time-note"><b>Day 52 of 92</b> — 57% elapsed. Jul 1 → Sep 30.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <b>What changed:</b> objectives are no longer hidden behind tabs — the whole portfolio is on one page,
+        each key result shows a <b>today marker</b> for expected pace, and health (On Track / At Risk / Off Track)
+        is computed from progress vs. time elapsed rather than raw percentage.
+      </div>
+
+      <div class="filterbar">
+        <button class="pill on">All</button>
+        <button class="pill"><i class="dot" style="background:#4f46e5"></i>Corporate</button>
+        <button class="pill"><i class="dot" style="background:#0f8a4a"></i>Growth</button>
+        <button class="pill"><i class="dot" style="background:#b3730a"></i>Operations</button>
+        <button class="pill"><i class="dot" style="background:#0284c7"></i>Development</button>
+        <button class="pill"><i class="dot" style="background:#c62f24"></i>Finance</button>
+        <span class="sp"></span>
+        <button class="pill">Sort: At risk first</button>
+      </div>
+
+      <div id="okrs"></div>
+    </div>
+
+    <aside class="rail">
+      <div class="rail-h"><span class="rail-t">Recent Activity</span><button class="btn btn-sm">Read all</button></div>
+      <div id="acts"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const EL=57;
+const DATA=[
+ {t:'Improve device data quality across platform',d:'Establish a repeatable cleaning process so device records are trustworthy for billing and reporting.',cat:'Operations',c:'#b3730a',own:'Bill Hearne',notes:2,krs:[
+   {n:'Device data cleaning to completion',cur:'0',tgt:'1',p:0,own:'Bill',upd:'Jul 16',notes:1},
+   {n:'New UI plan and deployment',cur:'0',tgt:'1',p:0,own:'Bill',upd:'Jul 16',notes:1}]},
+ {t:'Unify CRM and financial systems of record',d:'One source of truth across HubSpot and NetSuite so revenue reporting stops requiring manual reconciliation.',cat:'Corporate',c:'#4f46e5',own:'Jinesh Patel',notes:3,krs:[
+   {n:'Clean NetSuite and HubSpot',cur:'50 %',tgt:'100 %',p:50,own:'Jinesh',upd:'Jul 20',notes:1},
+   {n:'Migrate legacy billing records',cur:'8,400',tgt:'12,000',p:70,own:'Dana',upd:'Aug 19',notes:3}]},
+ {t:'Accelerate new logo acquisition',d:'Grow enterprise footprint with a repeatable outbound and demo motion.',cat:'Growth',c:'#0f8a4a',own:'Amanda Beaty',notes:4,krs:[
+   {n:'New enterprise accounts signed',cur:'14',tgt:'25',p:56,own:'Amanda',upd:'Aug 20',notes:5},
+   {n:'Qualified pipeline generated',cur:'$1,850,000',tgt:'$3,000,000',p:62,own:'Marco',upd:'Aug 21',notes:2},
+   {n:'Demo-to-close rate',cur:'22 %',tgt:'35 %',p:63,own:'Amanda',upd:'Aug 18',notes:0}]},
+ {t:'Ship the v3 practice dashboard',d:'Get the rebuilt dashboard in front of real customers and stabilise it before GA.',cat:'Development',c:'#0284c7',own:'Elice Waggoner',notes:1,krs:[
+   {n:'Beta customers onboarded',cur:'6',tgt:'20',p:30,own:'Elice',upd:'Aug 12',notes:4},
+   {n:'P1 bugs open at launch',cur:'11',tgt:'3',p:45,own:'Raj',upd:'Aug 20',notes:2}]},
+ {t:'Strengthen gross margin',d:'Improve unit economics through pricing discipline and infrastructure efficiency.',cat:'Finance',c:'#c62f24',own:'Jinesh Patel',notes:2,krs:[
+   {n:'Gross margin',cur:'68 %',tgt:'74 %',p:92,own:'Jinesh',upd:'Aug 15',notes:2},
+   {n:'Annual cloud spend reduction',cur:'$42,000',tgt:'$120,000',p:35,own:'Dana',upd:'Aug 08',notes:1}]},
+];
+const H=p=>p>=EL-8?['st-on','On Track','var(--green)']:p>=EL-25?['st-risk','At Risk','var(--amber)']:['st-off','Off Track','var(--red)'];
+document.getElementById('okrs').innerHTML=DATA.map(o=>{
+ const avg=Math.round(o.krs.reduce((s,k)=>s+k.p,0)/o.krs.length);
+ const [sc,sl,col]=H(avg), gap=avg-EL;
+ return `<article class="okr">
+  <div class="okr-top">
+    <div class="okr-main">
+      <div class="okr-tags">
+        <span class="tag"><i class="dot" style="background:${o.c}"></i>${o.cat}</span>
+        <span class="state ${sc}">${sl}</span>
+        <span class="tag">${o.own}</span>
+        <span class="tag">${o.krs.length} key results</span>
+      </div>
+      <h2 class="okr-h">${o.t}</h2>
+      <p class="okr-desc">${o.d}</p>
+    </div>
+    <div class="okr-right">
+      <div class="big-pct" style="color:${col}">${avg}%</div>
+      <div class="delta" style="color:${gap<0?'var(--red)':'var(--green)'}">${gap>=0?'+':''}${gap} pts vs. pace</div>
+      <div class="bigbar"><i style="width:${Math.min(avg,100)}%;background:${col}"></i><span class="mark" style="left:${EL}%"></span></div>
+    </div>
+  </div>
+  <div class="krs">
+    <div class="krh"><span>Key Result</span><span>Current</span><span>Target</span><span>Progress vs. pace</span><span>Actions</span></div>
+    ${o.krs.map(k=>{const [kc,kl,kcol]=H(k.p),kg=k.p-EL;return `
+    <div class="krow">
+      <div>
+        <div class="kn">${k.n}</div>
+        <div class="kmeta">${k.own} · updated ${k.upd}${k.notes?` <span class="notepill"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>${k.notes} notes</span>`:''}</div>
+      </div>
+      <div class="num">${k.cur}<small>current</small></div>
+      <div class="num">${k.tgt}<small>target</small></div>
+      <div>
+        <div class="minibar"><i style="width:${Math.min(k.p,100)}%;background:${kcol}"></i><span class="mark" style="left:${EL}%"></span></div>
+        <div class="pace-note"><b style="color:${kcol}">${k.p}%</b> · ${kg<0?`${Math.abs(kg)} pts behind`:`${kg} pts ahead`}</div>
+      </div>
+      <div class="krow-acts">
+        <button class="icon-btn" title="Submit update"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-11 11M22 2l-7 20-4-9-9-4Z"/></svg></button>
+        <button class="icon-btn" title="Notes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></button>
+        <button class="icon-btn" title="More"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+      </div>
+    </div>`}).join('')}
+  </div>
+  <div class="okr-foot">
+    <button class="link">+ Add Key Result</button>
+    <button class="link muted-link">Objective notes (${o.notes})</button>
+    <span class="sp"></span>
+    <button class="link muted-link">Edit</button>
+    <button class="link muted-link">Move</button>
+    <button class="link muted-link">Delete</button>
+  </div>
+ </article>`}).join('');
+
+const ACT=[
+ ['Amanda Beaty','2h ago','updated','Key Result','New enterprise accounts signed','13 → 14 accounts. Signed Northgate Dental Group this morning.'],
+ ['Marco Silva','5h ago','noted on','Key Result','Qualified pipeline generated','Two enterprise deals slipped to next quarter; adjusting forecast.'],
+ ['Raj Patel','Yesterday','updated','Key Result','P1 bugs open at launch','14 → 11 open. Three chart-rendering defects closed.'],
+ ['Elice Waggoner','Yesterday','noted on','Objective','Ship the v3 practice dashboard','Beta onboarding slower than planned — scheduling office hours.'],
+ ['Jinesh Patel','Aug 19','updated','Key Result','Gross margin','66% → 68%. Renegotiated two vendor contracts.'],
+ ['Dana Whitfield','Aug 19','updated','Key Result','Migrate legacy billing records','7,900 → 8,400 records migrated.'],
+];
+document.getElementById('acts').innerHTML=ACT.map(a=>`
+ <div class="act">
+   <div class="act-1"><span class="act-a">${a[0]}</span><span class="act-t">${a[1]}</span></div>
+   <div class="act-b">${a[2]} <span class="tiny-tag">${a[3]}</span> <b>${a[4]}</b></div>
+   <div class="act-b" style="color:var(--ink-3);margin-top:3px">${a[5]}</div>
+ </div>`).join('');
+</script>
+</body>
+</html>

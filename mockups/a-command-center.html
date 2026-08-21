@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A — Command Center</title>
+<style>
+:root{
+  --bg:#fbfbfc; --surface:#fff; --surface-2:#f6f6f8; --surface-3:#f0f0f3;
+  --border:#e6e6ea; --border-strong:#d6d6dd;
+  --text:#18181b; --text-2:#52525b; --text-3:#8b8b96;
+  --accent:#5b5bd6; --accent-bg:#eeeefb; --accent-border:#c9c9f2;
+  --green:#12a150; --green-bg:#e8f8ee;
+  --amber:#c07c00; --amber-bg:#fdf5e2;
+  --red:#d92d20; --red-bg:#fdecea;
+  --radius:8px; --radius-sm:6px;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
+}
+[data-theme="dark"]{
+  --bg:#0c0c0e; --surface:#141417; --surface-2:#1b1b1f; --surface-3:#232328;
+  --border:#26262c; --border-strong:#35353d;
+  --text:#f4f4f5; --text-2:#a1a1aa; --text-3:#71717a;
+  --accent:#8b8bf0; --accent-bg:#1e1e3a; --accent-border:#33336b;
+  --green:#3dd68c; --green-bg:#0e2a1c;
+  --amber:#f0b429; --amber-bg:#2e2408;
+  --red:#f87171; --red-bg:#2e1414;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.app{display:flex;min-height:100vh}
+
+/* ── Sidebar ─────────────────────────────── */
+.rail{
+  width:56px;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;
+  position:sticky;top:0;height:100vh;
+}
+.rail-logo{
+  width:32px;height:32px;border-radius:8px;background:var(--accent);
+  color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px;margin-bottom:12px;
+}
+.rail-btn{
+  width:36px;height:36px;border-radius:var(--radius-sm);border:none;background:none;
+  color:var(--text-3);display:grid;place-items:center;cursor:pointer;transition:.12s;
+}
+.rail-btn:hover{background:var(--surface-3);color:var(--text)}
+.rail-btn.active{background:var(--accent-bg);color:var(--accent)}
+.rail-spacer{flex:1}
+.rail-avatar{
+  width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#5b5bd6,#9333ea);
+  color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;cursor:pointer;
+}
+
+/* ── Main ────────────────────────────────── */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{
+  height:52px;border-bottom:1px solid var(--border);background:var(--surface);
+  display:flex;align-items:center;gap:10px;padding:0 16px;position:sticky;top:0;z-index:20;
+}
+.crumb{font-weight:650;font-size:14px;letter-spacing:-.01em}
+.crumb-sep{color:var(--text-3)}
+.sel{
+  appearance:none;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:5px 26px 5px 10px;font:inherit;font-size:13px;
+  color:var(--text);cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%238b8b96' stroke-width='2'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;
+}
+.search{
+  flex:1;max-width:280px;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:5px 10px;font:inherit;font-size:13px;color:var(--text);
+}
+.search::placeholder{color:var(--text-3)}
+.spacer{flex:1}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;border-radius:var(--radius-sm);
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  padding:5px 11px;font:inherit;font-size:13px;font-weight:550;cursor:pointer;transition:.12s;
+}
+.btn:hover{background:var(--surface-2);border-color:var(--border-strong)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:#4a4ac4;border-color:#4a4ac4}
+.btn-xs{padding:3px 8px;font-size:12px}
+.kbd{
+  font-family:var(--mono);font-size:10px;background:var(--surface-3);
+  border:1px solid var(--border);border-radius:4px;padding:1px 4px;color:var(--text-3);
+}
+
+/* ── Filter strip ────────────────────────── */
+.filters{
+  display:flex;align-items:center;gap:6px;padding:10px 16px;
+  border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;
+}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;border-radius:20px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text-2);
+  padding:3px 11px;font-size:12.5px;font-weight:550;cursor:pointer;transition:.12s;
+}
+.chip:hover{background:var(--surface-2)}
+.chip.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+
+/* ── Quarter pulse bar ───────────────────── */
+.pulse{
+  display:flex;align-items:center;gap:20px;padding:14px 16px;
+  border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;
+}
+.pulse-stat{display:flex;flex-direction:column;gap:1px;min-width:74px}
+.pulse-label{font-size:10.5px;font-weight:650;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3)}
+.pulse-value{font-size:21px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.pulse-div{width:1px;height:32px;background:var(--border)}
+.pulse-track{flex:1;min-width:200px}
+.timebar{
+  height:6px;border-radius:3px;background:var(--surface-3);position:relative;overflow:hidden;margin-top:6px;
+}
+.timebar-fill{height:100%;background:var(--border-strong);border-radius:3px}
+.timebar-note{font-size:11.5px;color:var(--text-3);margin-top:5px}
+
+/* ── Health segments ─────────────────────── */
+.health{display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:6px;gap:2px}
+.health span{display:block}
+.health-legend{display:flex;gap:12px;margin-top:6px;font-size:11.5px;color:var(--text-3)}
+.health-legend b{color:var(--text-2);font-weight:600}
+
+/* ── Objective list ──────────────────────── */
+.list{padding:8px 16px 60px}
+.obj{
+  border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);
+  margin-bottom:8px;overflow:hidden;transition:.12s;
+}
+.obj:hover{border-color:var(--border-strong)}
+.obj-head{
+  display:grid;grid-template-columns:20px 1fr auto auto auto;align-items:center;gap:12px;
+  padding:12px 14px;cursor:pointer;user-select:none;
+}
+.obj-head:hover{background:var(--surface-2)}
+.caret{color:var(--text-3);transition:transform .15s;display:grid;place-items:center}
+.obj.open .caret{transform:rotate(90deg)}
+.obj-title{font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:9px;min-width:0}
+.obj-title span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{
+  font-size:11px;font-weight:600;padding:1.5px 7px;border-radius:5px;
+  background:var(--surface-3);color:var(--text-2);flex:none;
+}
+.obj-meta{font-size:12.5px;color:var(--text-3);white-space:nowrap;font-variant-numeric:tabular-nums}
+.obj-bar{width:130px;flex:none;display:block}
+.track{display:block;height:6px;border-radius:3px;background:var(--surface-3);position:relative;overflow:visible}
+.fill{display:block;height:100%;border-radius:3px;transition:width .3s}
+.pace{
+  position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--text);
+  opacity:.45;border-radius:1px;
+}
+.obj-pct{
+  font-family:var(--mono);font-size:14px;font-weight:650;width:46px;text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+.status{
+  font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;
+  text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;
+}
+.s-on{background:var(--green-bg);color:var(--green)}
+.s-risk{background:var(--amber-bg);color:var(--amber)}
+.s-off{background:var(--red-bg);color:var(--red)}
+
+/* ── KR table ────────────────────────────── */
+.obj-body{display:none;border-top:1px solid var(--border);background:var(--surface-2)}
+.obj.open .obj-body{display:block}
+.kr{
+  display:grid;grid-template-columns:1fr 92px 130px 52px auto;align-items:center;gap:12px;
+  padding:9px 14px 9px 46px;border-bottom:1px solid var(--border);
+}
+.kr:hover{background:var(--surface-3)}
+.kr-name{font-size:13.5px;font-weight:500;display:flex;align-items:center;gap:8px;min-width:0}
+.kr-name span.n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kr-sub{font-size:11.5px;color:var(--text-3);margin-top:1px}
+.kr-nums{font-family:var(--mono);font-size:12.5px;color:var(--text-2);text-align:right;font-variant-numeric:tabular-nums}
+.kr-pct{font-family:var(--mono);font-size:13px;font-weight:650;text-align:right;font-variant-numeric:tabular-nums}
+.kr-acts{display:flex;gap:5px;opacity:0;transition:.12s}
+.kr:hover .kr-acts{opacity:1}
+.spark{display:block}
+.note-badge{
+  display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text-3);
+  background:var(--surface-3);border-radius:4px;padding:1px 5px;flex:none;
+}
+.obj-foot{
+  display:flex;align-items:center;gap:8px;padding:9px 14px 9px 46px;
+}
+.ghost{
+  border:1px dashed var(--border-strong);background:none;color:var(--text-3);
+  border-radius:var(--radius-sm);padding:4px 10px;font:inherit;font-size:12.5px;cursor:pointer;
+}
+.ghost:hover{color:var(--accent);border-color:var(--accent)}
+.notice{
+  margin:14px 16px;padding:10px 13px;border-radius:var(--radius);
+  background:var(--accent-bg);border:1px solid var(--accent-border);
+  color:var(--text-2);font-size:12.5px;
+}
+.notice b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="rail">
+    <div class="rail-logo">U</div>
+    <button class="rail-btn active" title="OKR Tracker"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></button>
+    <button class="rail-btn" title="Email Reports"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></button>
+    <button class="rail-btn" title="Admin"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></button>
+    <button class="rail-btn" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V15z"/></svg></button>
+    <div class="rail-spacer"></div>
+    <button class="rail-btn" onclick="toggleTheme()" title="Toggle theme" id="themeBtn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    <div class="rail-avatar" title="Jinesh Patel — Admin">JP</div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="crumb">OKR Tracker</span>
+      <span class="crumb-sep">/</span>
+      <select class="sel"><option>2026-Q3</option><option>2026-Q2</option><option>2026-Q4</option></select>
+      <input class="search" placeholder="Search objectives, key results, owners…">
+      <span class="kbd">⌘K</span>
+      <div class="spacer"></div>
+      <button class="btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>Refresh</button>
+      <button class="btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Activity <span class="tag" style="background:var(--accent);color:#fff">60</span></button>
+      <button class="btn btn-primary"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>Objective</button>
+    </div>
+
+    <div class="filters">
+      <button class="chip active">All</button>
+      <button class="chip"><span class="dot" style="background:#6366f1"></span>Corporate</button>
+      <button class="chip"><span class="dot" style="background:#12a150"></span>Growth</button>
+      <button class="chip"><span class="dot" style="background:#c07c00"></span>Operations</button>
+      <button class="chip"><span class="dot" style="background:#0ea5e9"></span>Development</button>
+      <button class="chip"><span class="dot" style="background:#d92d20"></span>Finance</button>
+      <div class="spacer"></div>
+      <button class="chip">Group: Category</button>
+      <button class="chip">Sort: Health</button>
+    </div>
+
+    <div class="pulse">
+      <div class="pulse-stat"><span class="pulse-label">Objectives</span><span class="pulse-value">5</span></div>
+      <div class="pulse-stat"><span class="pulse-label">Key Results</span><span class="pulse-value">11</span></div>
+      <div class="pulse-div"></div>
+      <div class="pulse-stat"><span class="pulse-label">Avg Progress</span><span class="pulse-value">46%</span></div>
+      <div class="pulse-stat"><span class="pulse-label">Completed</span><span class="pulse-value" style="color:var(--green)">0</span></div>
+      <div class="pulse-stat"><span class="pulse-label">At Risk</span><span class="pulse-value" style="color:var(--red)">2</span></div>
+      <div class="pulse-div"></div>
+      <div class="pulse-track">
+        <span class="pulse-label">Quarter Health</span>
+        <div class="health">
+          <span style="background:var(--green);flex:5"></span>
+          <span style="background:var(--amber);flex:3"></span>
+          <span style="background:var(--red);flex:3"></span>
+        </div>
+        <div class="health-legend">
+          <span><b>5</b> on track</span><span><b>3</b> at risk</span><span><b>3</b> off track</span>
+        </div>
+      </div>
+      <div class="pulse-track">
+        <span class="pulse-label">Time Elapsed</span>
+        <div class="timebar"><div class="timebar-fill" style="width:57%"></div></div>
+        <div class="timebar-note">Day 52 of 92 &nbsp;·&nbsp; 57% through Q3 &nbsp;·&nbsp; ends Sep 30</div>
+      </div>
+    </div>
+
+    <div class="notice">
+      <b>What's new here:</b> every objective is visible at once (no tabs), the dark tick on each bar is
+      <b>expected pace</b> for today, and status is derived automatically — bar behind the tick = at risk.
+    </div>
+
+    <div class="list" id="list"></div>
+  </div>
+</div>
+
+<script>
+const ELAPSED = 57;
+const DATA = [
+  {t:'Unify CRM and financial systems of record',cat:'Corporate',c:'#6366f1',own:'Jinesh Patel',krs:[
+    {n:'Clean NetSuite and Hubspot',cur:'50 %',tgt:'100 %',p:50,own:'Jinesh',upd:'Jul 20',notes:1,tr:[38,40,42,45,47,50]},
+    {n:'Migrate legacy billing records',cur:'8,400',tgt:'12,000',p:70,own:'Dana',upd:'Aug 19',notes:3,tr:[20,34,48,55,63,70]}]},
+  {t:'Accelerate new logo acquisition',cat:'Growth',c:'#12a150',own:'Amanda Beaty',krs:[
+    {n:'New enterprise accounts signed',cur:'14',tgt:'25',p:56,own:'Amanda',upd:'Aug 20',notes:5,tr:[8,18,28,38,48,56]},
+    {n:'Qualified pipeline generated',cur:'$1,850,000',tgt:'$3,000,000',p:62,own:'Marco',upd:'Aug 21',notes:2,tr:[12,25,36,44,54,62]},
+    {n:'Demo-to-close rate',cur:'22 %',tgt:'35 %',p:63,own:'Amanda',upd:'Aug 18',notes:0,tr:[40,44,50,55,60,63]}]},
+  {t:'Improve device data quality across platform',cat:'Operations',c:'#c07c00',own:'Bill Hearne',krs:[
+    {n:'Device data cleaning to completion',cur:'0',tgt:'1',p:0,own:'Bill',upd:'Jul 16',notes:1,tr:[0,0,0,0,0,0]},
+    {n:'New UI plan and deployment',cur:'0',tgt:'1',p:0,own:'Bill',upd:'Jul 16',notes:1,tr:[0,0,0,0,0,0]}]},
+  {t:'Ship the v3 practice dashboard',cat:'Development',c:'#0ea5e9',own:'Elice Waggoner',krs:[
+    {n:'Beta customers onboarded',cur:'6',tgt:'20',p:30,own:'Elice',upd:'Aug 12',notes:4,tr:[0,5,10,18,24,30]},
+    {n:'P1 bugs open at launch',cur:'11',tgt:'3',p:45,own:'Raj',upd:'Aug 20',notes:2,tr:[10,15,22,30,38,45]}]},
+  {t:'Strengthen gross margin',cat:'Finance',c:'#d92d20',own:'Jinesh Patel',krs:[
+    {n:'Gross margin',cur:'68 %',tgt:'74 %',p:92,own:'Jinesh',upd:'Aug 15',notes:2,tr:[60,68,74,80,86,92]},
+    {n:'Annual cloud spend reduction',cur:'$42,000',tgt:'$120,000',p:35,own:'Dana',upd:'Aug 08',notes:1,tr:[4,10,16,24,30,35]}]},
+];
+const health = p => p>=ELAPSED-8 ? ['s-on','On Track','var(--green)']
+                  : p>=ELAPSED-25 ? ['s-risk','At Risk','var(--amber)']
+                  : ['s-off','Off Track','var(--red)'];
+const spark = (tr,col)=>{
+  const w=64,h=18,mx=Math.max(...tr,1);
+  const pts=tr.map((v,i)=>`${(i/(tr.length-1)*w).toFixed(1)},${(h-(v/mx)*h*.85-1).toFixed(1)}`).join(' ');
+  return `<svg class="spark" width="${w}" height="${h}"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+};
+document.getElementById('list').innerHTML = DATA.map((o,i)=>{
+  const avg=Math.round(o.krs.reduce((s,k)=>s+k.p,0)/o.krs.length);
+  const [cls,lbl,col]=health(avg);
+  return `<div class="obj ${i<2?'open':''}">
+    <div class="obj-head" onclick="this.parentNode.classList.toggle('open')">
+      <span class="caret"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m9 6 6 6-6 6"/></svg></span>
+      <span class="obj-title"><span class="dot" style="background:${o.c}"></span><span class="t">${o.t}</span><span class="tag">${o.cat}</span></span>
+      <span class="obj-meta">${o.own} · ${o.krs.length} KR</span>
+      <span class="obj-bar"><span class="track"><span class="fill" style="width:${Math.min(avg,100)}%;background:${col}"></span><span class="pace" style="left:${ELAPSED}%"></span></span></span>
+      <span style="display:flex;align-items:center;gap:10px"><span class="obj-pct">${avg}%</span><span class="status ${cls}">${lbl}</span></span>
+    </div>
+    <div class="obj-body">
+      ${o.krs.map(k=>{const [kc,kl,kcol]=health(k.p);return `
+      <div class="kr">
+        <span><span class="kr-name"><span class="n">${k.n}</span>${k.notes?`<span class="note-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>${k.notes}</span>`:''}</span>
+        <span class="kr-sub">${k.own} · updated ${k.upd}</span></span>
+        <span class="kr-nums">${k.cur}<br><span style="color:var(--text-3)">${k.tgt}</span></span>
+        <span><span class="track"><span class="fill" style="width:${Math.min(k.p,100)}%;background:${kcol}"></span><span class="pace" style="left:${ELAPSED}%"></span></span>
+        <span style="display:block;margin-top:3px">${spark(k.tr,kcol)}</span></span>
+        <span class="kr-pct" style="color:${kcol}">${k.p}%</span>
+        <span class="kr-acts"><button class="btn btn-primary btn-xs">Update</button><button class="btn btn-xs">Notes</button><button class="btn btn-xs">⋯</button></span>
+      </div>`}).join('')}
+      <div class="obj-foot">
+        <button class="ghost">+ Key Result</button>
+        <button class="ghost">Objective notes (2)</button>
+        <div class="spacer"></div>
+        <button class="ghost">Edit</button><button class="ghost">Move</button><button class="ghost">Delete</button>
+      </div>
+    </div>
+  </div>`;
+}).join('');
+function toggleTheme(){
+  const r=document.documentElement;
+  r.dataset.theme = r.dataset.theme==='dark' ? '' : 'dark';
+}
+</script>
+</body>
+</html>

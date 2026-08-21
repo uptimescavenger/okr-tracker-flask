@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
 {% block body %}
-<div class="app-layout">
-  {% with active_page='account' %}
-  {% include "partials/sidebar.html" %}
-  {% endwith %}
+{% with active_page='account' %}
+{% include "partials/header.html" %}
+{% endwith %}
 
-  <main class="main-content">
+<div class="page-shell">
+  <main class="page-main">
     <h2 style="color:var(--text-primary);margin-bottom:4px;">Account Settings</h2>
     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:24px;">Manage your profile and security settings.</p>
 
