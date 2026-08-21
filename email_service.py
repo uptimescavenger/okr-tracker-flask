@@ -390,6 +390,64 @@ def send_update_request(user, stale_krs, quarter):
     return _send_email(user["email"], f"OKR Update Request — {quarter}", html)
 
 
+def send_invite(email, first_name, invite_url):
+    """First-time invite — asks the recipient to set their password."""
+    greeting = f"Hi {first_name}," if first_name else "Hi,"
+    html = f'''
+    <div style="max-width:640px; margin:0 auto; font-family:Arial,Helvetica,sans-serif; color:#1e293b;">
+        <div style="{_HEADER_STYLE}">
+            <h1 style="color:#ffffff; margin:0; font-size:22px;">OKR Tracker</h1>
+            <p style="color:#c7d2fe; margin:4px 0 0; font-size:14px;">You&#39;re invited</p>
+        </div>
+        <div style="background:#ffffff; padding:24px; border:1px solid #e2e8f0; border-top:none;">
+            <p style="font-size:15px; color:#475569;">{greeting}</p>
+            <p style="font-size:14px; color:#64748b;">
+                You&#39;ve been invited to the OKR Tracker. Click below to set your password
+                and get started. This link is valid for 7 days.
+            </p>
+            <div style="text-align:center; margin:24px 0;">
+                <a href="{invite_url}" style="background:#6366f1; color:#fff; padding:12px 28px; border-radius:6px; text-decoration:none; font-weight:700; font-size:14px; display:inline-block;">Set your password</a>
+            </div>
+            <p style="font-size:12px; color:#94a3b8;">If the button doesn&#39;t work, paste this URL into your browser:<br>{invite_url}</p>
+        </div>
+        <div style="text-align:center; padding:20px 0 10px; color:#94a3b8; font-size:12px;">
+            <p>Powered by OKR Tracker</p>
+        </div>
+    </div>
+    '''
+    plain = f"You've been invited to OKR Tracker. Set your password: {invite_url}"
+    return _send_email(email, "You're invited to OKR Tracker", html, plain)
+
+
+def send_password_reset(email, first_name, reset_url):
+    """Password reset — link is valid for 1 hour."""
+    greeting = f"Hi {first_name}," if first_name else "Hi,"
+    html = f'''
+    <div style="max-width:640px; margin:0 auto; font-family:Arial,Helvetica,sans-serif; color:#1e293b;">
+        <div style="{_HEADER_STYLE}">
+            <h1 style="color:#ffffff; margin:0; font-size:22px;">OKR Tracker</h1>
+            <p style="color:#c7d2fe; margin:4px 0 0; font-size:14px;">Password reset</p>
+        </div>
+        <div style="background:#ffffff; padding:24px; border:1px solid #e2e8f0; border-top:none;">
+            <p style="font-size:15px; color:#475569;">{greeting}</p>
+            <p style="font-size:14px; color:#64748b;">
+                We received a request to reset your password. Click below to choose a new one.
+                This link is valid for 1 hour. If you didn&#39;t request this, you can safely ignore this email.
+            </p>
+            <div style="text-align:center; margin:24px 0;">
+                <a href="{reset_url}" style="background:#6366f1; color:#fff; padding:12px 28px; border-radius:6px; text-decoration:none; font-weight:700; font-size:14px; display:inline-block;">Reset your password</a>
+            </div>
+            <p style="font-size:12px; color:#94a3b8;">If the button doesn&#39;t work, paste this URL into your browser:<br>{reset_url}</p>
+        </div>
+        <div style="text-align:center; padding:20px 0 10px; color:#94a3b8; font-size:12px;">
+            <p>Powered by OKR Tracker</p>
+        </div>
+    </div>
+    '''
+    plain = f"Reset your OKR Tracker password: {reset_url}"
+    return _send_email(email, "Reset your OKR Tracker password", html, plain)
+
+
 def send_weekly_digest(okrs_df, kpis_df, notes_df, quarter):
     users_df = auth.list_users()
     results = []

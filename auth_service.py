@@ -58,6 +58,46 @@ def verify_remember_token(token: str) -> str | None:
     return None
 
 
+# -- Reset / invite tokens (stateless, HMAC-signed, time-limited) --
+
+_RESET_SECRET = "okr-tracker-v2-reset"
+
+
+def _reset_key() -> bytes:
+    return f"{_RESET_SECRET}:{config.SPREADSHEET_ID}".encode()
+
+
+def make_reset_token(email: str, purpose: str = "reset", ttl_seconds: int = 3600) -> str:
+    """Signed, time-limited token used for password reset and first-time invite.
+
+    Payload is email:purpose:expiry — HMAC-signed with the reset secret. Stateless,
+    so no sheet writes are needed and revocation happens naturally when the token
+    expires. `purpose` lets the landing page adapt copy ("Welcome" vs "Reset").
+    """
+    import time as _time
+    expiry = int(_time.time()) + int(ttl_seconds)
+    payload = f"{email.strip().lower()}:{purpose}:{expiry}"
+    sig = hmac.new(_reset_key(), payload.encode(), hashlib.sha256).hexdigest()
+    return base64.urlsafe_b64encode(f"{payload}:{sig}".encode()).decode()
+
+
+def verify_reset_token(token: str) -> tuple[str, str] | None:
+    """Return (email, purpose) if the token is valid and unexpired, else None."""
+    import time as _time
+    try:
+        raw = base64.urlsafe_b64decode(token.encode()).decode()
+        email, purpose, expiry_str, sig = raw.rsplit(":", 3)
+        payload = f"{email}:{purpose}:{expiry_str}"
+        expected = hmac.new(_reset_key(), payload.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            return None
+        if int(expiry_str) < int(_time.time()):
+            return None
+        return email, purpose
+    except Exception:
+        return None
+
+
 def auto_login_from_cookie(token: str) -> bool:
     if not token:
         return False
@@ -105,6 +145,14 @@ def seed_admin():
 
 
 # -- Public API --
+
+def find_user(email: str) -> dict | None:
+    df = _read_users()
+    if df.empty:
+        return None
+    match = df[df["email"].str.lower() == email.strip().lower()]
+    return match.iloc[0].to_dict() if not match.empty else None
+
 
 def login(email: str, password: str) -> dict | None:
     df = _read_users()

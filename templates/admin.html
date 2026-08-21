@@ -35,8 +35,9 @@
         <div>
           <span class="role-badge role-{{ user.role|replace(' ', '') }}">{{ user.role }}</span>
         </div>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-sm" onclick='openEditUserModal({{ user|tojson }})'>Edit</button>
+          <button class="btn btn-secondary btn-sm" onclick='sendInvite("{{ user.email }}")'>Resend Invite</button>
           <button class="btn btn-secondary btn-sm" onclick='openResetPwModal("{{ user.email }}")'>Reset PW</button>
           <button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:#fecaca;" onclick='deleteUser("{{ user.email }}")'>Delete</button>
         </div>
@@ -66,6 +67,12 @@
       <input type="text" class="form-input" id="newUserLast">
     </div>
     <div class="form-group">
+      <div class="checkbox-group" style="margin-bottom:8px;">
+        <input type="checkbox" id="newUserSendInvite" checked onchange="togglePwField()">
+        <label for="newUserSendInvite">Send invite email — user sets their own password</label>
+      </div>
+    </div>
+    <div class="form-group" id="newUserPwGroup" style="display:none;">
       <label class="form-label required">Password</label>
       <input type="password" class="form-input" id="newUserPw">
     </div>
@@ -152,21 +159,45 @@ function openResetPwModal(email) {
   openModal('resetPwModal');
 }
 
+function togglePwField() {
+  const invite = document.getElementById('newUserSendInvite').checked;
+  document.getElementById('newUserPwGroup').style.display = invite ? 'none' : '';
+}
+
 function submitAddUser() {
-  if (!validateRequired([
+  const invite = document.getElementById('newUserSendInvite').checked;
+  const fields = [
     { id: 'newUserEmail', label: 'Email' },
     { id: 'newUserFirst', label: 'First Name' },
     { id: 'newUserLast', label: 'Last Name' },
-    { id: 'newUserPw', label: 'Password' },
-  ])) return;
+  ];
+  if (!invite) fields.push({ id: 'newUserPw', label: 'Password' });
+  if (!validateRequired(fields)) return;
   apiPost('/api/admin/user/create', {
     email: document.getElementById('newUserEmail').value,
     first_name: document.getElementById('newUserFirst').value,
     last_name: document.getElementById('newUserLast').value,
-    password: document.getElementById('newUserPw').value,
+    password: invite ? '' : document.getElementById('newUserPw').value,
     role: document.getElementById('newUserRole').value,
     categories: document.getElementById('newUserCats').value || 'All',
-  }, 'Creating user...').then(r => { if (r.ok) { showToast('User created', 'success'); showLoading('Reloading...'); setTimeout(() => location.reload(), 500); }});
+    send_invite: invite,
+  }, 'Creating user...').then(r => {
+    if (r.ok) {
+      const msg = r.invite_warning
+        ? 'User created, but invite email failed: ' + r.invite_warning
+        : (invite ? 'User created and invite sent' : 'User created');
+      showToast(msg, r.invite_warning ? 'error' : 'success');
+      showLoading('Reloading...');
+      setTimeout(() => location.reload(), 500);
+    }
+  });
+}
+
+function sendInvite(email) {
+  showConfirm('Send Invite', 'Send an invite/reset email to ' + email + '?', function() {
+    apiPost('/api/admin/user/send-invite', { email: email }, 'Sending invite...')
+      .then(r => { if (r.ok) showToast('Invite email sent to ' + email, 'success'); });
+  });
 }
 
 function submitEditUser() {

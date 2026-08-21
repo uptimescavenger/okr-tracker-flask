@@ -9,6 +9,7 @@ Optimizations:
 """
 
 import os
+import secrets
 import time
 import uuid
 from datetime import datetime
@@ -26,6 +27,13 @@ import auth_service as auth
 import email_service
 
 app = Flask(__name__)
+# Trust Render's one-hop proxy so request.host_url reflects the real https URL
+# used in outbound invite / reset links.
+try:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+except ImportError:
+    pass
 app.secret_key = config.SECRET_KEY
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -137,6 +145,82 @@ def logout():
     resp = make_response(redirect(url_for("login_page")))
     resp.delete_cookie("okr_remember")
     return resp
+
+
+# ---------- Forgot password / reset / invite ----------
+
+# Invite tokens live for a week so the recipient has time to click through.
+# Reset tokens are short-lived so a leaked link stops working quickly.
+_INVITE_TTL = 7 * 24 * 3600
+_RESET_TTL = 60 * 60
+
+
+def _reset_url_for(token: str) -> str:
+    # Build against the incoming request so it works whether the app is behind
+    # Render's proxy (https) or served from a preview URL, without relying on
+    # PREFERRED_URL_SCHEME configuration.
+    return request.host_url.rstrip("/") + url_for("reset_password_page", token=token)
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password_page():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = auth.find_user(email) if email else None
+        if user:
+            token = auth.make_reset_token(email, purpose="reset", ttl_seconds=_RESET_TTL)
+            try:
+                email_service.send_password_reset(
+                    email, user.get("first_name", ""), _reset_url_for(token),
+                )
+            except Exception:
+                # Never leak send failures — treat all responses the same so an
+                # attacker can't probe which addresses exist.
+                pass
+        flash(
+            "If an account exists for that email, we've sent a reset link. "
+            "Check your inbox (and spam folder).",
+            "success",
+        )
+        return redirect(url_for("login_page"))
+    return render_template("forgot_password.html")
+
+
+@app.route("/reset-password", methods=["GET", "POST"])
+def reset_password_page():
+    token = request.values.get("token", "")
+    result = auth.verify_reset_token(token) if token else None
+    if not result:
+        return render_template(
+            "reset_password.html", token="", email="", purpose="",
+            error="This link is invalid or has expired. Request a new one below.",
+        )
+    email, purpose = result
+
+    if request.method == "POST":
+        pw = request.form.get("password", "")
+        pw2 = request.form.get("password_confirm", "")
+        if not pw or len(pw) < 8:
+            return render_template("reset_password.html", token=token, email=email,
+                                   purpose=purpose, error="Password must be at least 8 characters.")
+        if pw != pw2:
+            return render_template("reset_password.html", token=token, email=email,
+                                   purpose=purpose, error="Passwords don't match.")
+        try:
+            auth.change_password(email, pw)
+        except ValueError as e:
+            return render_template("reset_password.html", token=token, email=email,
+                                   purpose=purpose, error=str(e))
+        # Log the user in so they land on the app directly.
+        user = auth.find_user(email)
+        if user:
+            session["_current_user"] = user
+        flash("Password set. Welcome!" if purpose == "invite" else "Password updated.",
+              "success")
+        return redirect(url_for("tracker"))
+
+    return render_template("reset_password.html", token=token, email=email,
+                           purpose=purpose, error="")
 
 
 # ---------- Main tracker ----------
@@ -495,14 +579,53 @@ def admin_panel():
 @admin_required
 def api_create_user():
     d = request.json
+    send_invite = bool(d.get("send_invite"))
+    # When inviting, the admin doesn't type a password — set a random unguessable
+    # one so the account row is valid; the user chooses their real password via
+    # the invite link.
+    password = d.get("password") or (secrets.token_urlsafe(24) if send_invite else "")
+    if not password:
+        return jsonify({"ok": False, "error": "Password required (or enable Send Invite)."}), 400
     try:
         auth.create_user(
             d["email"], d["first_name"], d["last_name"],
-            d["password"], d["role"], d.get("categories", ""),
+            password, d["role"], d.get("categories", ""),
         )
-        return jsonify({"ok": True})
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
+
+    if send_invite:
+        token = auth.make_reset_token(d["email"], purpose="invite", ttl_seconds=_INVITE_TTL)
+        try:
+            ok, msg = email_service.send_invite(
+                d["email"], d.get("first_name", ""), _reset_url_for(token),
+            )
+            if not ok:
+                return jsonify({"ok": True, "invite_warning": msg})
+        except Exception as e:
+            return jsonify({"ok": True, "invite_warning": str(e)})
+    return jsonify({"ok": True})
+
+
+@app.route("/api/admin/user/send-invite", methods=["POST"])
+@login_required
+@admin_required
+def api_send_invite():
+    d = request.json
+    email = (d.get("email") or "").strip().lower()
+    user = auth.find_user(email)
+    if not user:
+        return jsonify({"ok": False, "error": "User not found"}), 404
+    token = auth.make_reset_token(email, purpose="invite", ttl_seconds=_INVITE_TTL)
+    try:
+        ok, msg = email_service.send_invite(
+            email, user.get("first_name", ""), _reset_url_for(token),
+        )
+        if not ok:
+            return jsonify({"ok": False, "error": msg}), 502
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 502
+    return jsonify({"ok": True})
 
 
 @app.route("/api/admin/user/update", methods=["POST"])
