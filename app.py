@@ -24,6 +24,7 @@ import config
 import sheets
 import data
 import auth_service as auth
+import views
 import email_service
 
 app = Flask(__name__)
@@ -244,7 +245,6 @@ def tracker():
     quarter = request.args.get("quarter", config.current_quarter())
     category = request.args.get("category", "All")
     allowed = auth.allowed_filter_options()
-
     if category not in allowed:
         category = allowed[0] if allowed else "All"
 
@@ -253,134 +253,29 @@ def tracker():
     history_df = sheets.read_kpi_history(quarter)
     notes_df = sheets.read_notes()
 
-    # Category filtering
-    if category != "All":
-        okrs_df = okrs_df[okrs_df["category"] == category]
-    else:
-        role = auth.user_role()
-        if role == "Manager":
-            user_cats = auth.user_categories()
-            visible = ["Corporate"] + user_cats
-            okrs_df = okrs_df[okrs_df["category"].isin(visible) | (okrs_df["category"] == "")]
-        elif role == "Team Member":
-            user_cats = auth.user_categories()
-            okrs_df = okrs_df[okrs_df["category"].isin(user_cats)]
+    okrs_df = views.visible_okrs(
+        okrs_df, category, auth.user_role(), auth.user_categories(),
+    )
 
-    # Filter KPIs to visible OKRs
-    visible_okr_ids = list(okrs_df["id"].astype(str))
-    visible_okr_id_set = set(visible_okr_ids)
-    kpis_df = kpis_df[kpis_df["okr_id"].astype(str).isin(visible_okr_id_set)]
+    # Narrow the child frames to what survived the visibility filter.
+    visible_okr_ids = set(okrs_df["id"].astype(str))
+    kpis_df = kpis_df[kpis_df["okr_id"].astype(str).isin(visible_okr_ids)]
     visible_kpi_ids = set(kpis_df["id"].astype(str))
     if not history_df.empty:
         history_df = history_df[history_df["kpi_id"].astype(str).isin(visible_kpi_ids)]
 
-    # Achievement per KR, then OKR progress as the mean of its KRs — one
-    # vectorized pass over one copy. (compute_all_progress() used to do its own
-    # copy + its own identical pass, so this ran twice per request.)
+    # Achievement per KR in one vectorized pass, reused for both the per-KR
+    # display and the objective aggregate.
     if not kpis_df.empty:
         kpis_df = kpis_df.copy()
         kpis_df["_achievement"] = data._compute_achievements_vec(kpis_df)
-    progress_map = data.progress_from_achievements(visible_okr_ids, kpis_df)
-    stats = data.okr_summary_stats_from_progress(progress_map)
 
-    # Pre-group everything once — eliminates N*M filter scans inside the render loop
-    krs_by_okr = data.group_kpis_by_okr(kpis_df)
-    notes_by_parent = data.group_notes_by_parent(notes_df)
-    trend_by_kpi = data.group_history_by_kpi(history_df)
+    view = views.build_tracker_view(okrs_df, kpis_df, history_df, notes_df, quarter)
 
-    # How far into the quarter we are — drives the pace marker and health status.
-    pace = config.quarter_pace(quarter)
-    elapsed = pace["elapsed"]
-
-    # Build OKR data for template + minimal chart payload
-    okr_list = []
-    chart_data = []  # Minimal: only kr_id + trend arrays
-    has_any_trend = False
-
-    for okr_row in okrs_df.to_dict("records"):
-        okr_id = str(okr_row["id"])
-        pct = progress_map.get(okr_id, 0.0)
-        color = data.progress_color(pct)
-        krs = krs_by_okr.get(okr_id, [])
-
-        kr_list = []
-        kr_charts = []
-        for kr_row in krs:
-            kr_id = str(kr_row["id"])
-            achievement = float(kr_row.get("_achievement", 0) or 0)
-            kr_notes = notes_by_parent.get(("KR", kr_id), [])
-            trend = trend_by_kpi.get(kr_id, [])
-            if len(trend) > 1:
-                has_any_trend = True
-                kr_charts.append({"id": kr_id, "trend": trend})
-            kr_list.append({
-                "id": kr_id,
-                "okr_id": okr_id,
-                "name": kr_row.get("name", ""),
-                "owner": kr_row.get("owner", ""),
-                "current_value": int(round(float(kr_row.get("current_value", 0) or 0))),
-                "target_value": int(round(float(kr_row.get("target_value", 0) or 0))),
-                "baseline_value": int(round(float(kr_row.get("baseline_value", 0) or 0))),
-                "direction": kr_row.get("direction", "increase"),
-                "unit": kr_row.get("unit", ""),
-                "last_updated": kr_row.get("last_updated", ""),
-                "description": kr_row.get("description", ""),
-                "achievement": int(round(achievement)),
-                "color": data.progress_color(achievement),
-                "health": data.health_for(achievement, elapsed),
-                "current_display": data.format_value(kr_row.get("current_value", 0), kr_row.get("unit", "")),
-                "target_display": data.format_value(kr_row.get("target_value", 0), kr_row.get("unit", "")),
-                "notes": kr_notes,
-                "has_trend": len(trend) > 1,
-            })
-
-        # Flat update log for the objective's History tab — newest first.
-        okr_history = []
-        for kr_row in krs:
-            kr_id = str(kr_row["id"])
-            unit = kr_row.get("unit", "")
-            points = trend_by_kpi.get(kr_id, [])
-            prev = None
-            for pt in points:
-                try:
-                    val = float(pt.get("value") or 0)
-                except (TypeError, ValueError):
-                    val = 0.0
-                okr_history.append({
-                    "kr_name": kr_row.get("name", ""),
-                    "date": pt.get("date", ""),
-                    "value": data.format_value(val, unit),
-                    "delta": None if prev is None else int(round(val - prev)),
-                })
-                prev = val
-        okr_history.sort(key=lambda h: h["date"], reverse=True)
-        okr_history = okr_history[:40]
-
-        okr_notes = notes_by_parent.get(("OKR", okr_id), [])
-        okr_list.append({
-            "id": okr_id,
-            "title": okr_row.get("title", ""),
-            "description": okr_row.get("description", ""),
-            "owner": okr_row.get("owner", ""),
-            "target_date": okr_row.get("target_date", ""),
-            "category": okr_row.get("category", ""),
-            "last_updated": okr_row.get("last_updated", ""),
-            "progress": int(round(pct)),
-            "color": color,
-            "health": data.health_for(pct, elapsed),
-            "cat_color": data.category_color(okr_row.get("category", "")),
-            "krs": kr_list,
-            "notes": okr_notes,
-            "history": okr_history,
-        })
-        if kr_charts:
-            chart_data.extend(kr_charts)
-
-    # Activity feed — respect the same visibility filter as the OKR/KR list.
-    # Notes are global, so trim to those whose parent is visible to this user.
+    # Notes are global, so trim the activity feed to parents this user can see.
     if not notes_df.empty:
         visible_notes = notes_df[
-            ((notes_df["parent_type"] == "OKR") & (notes_df["parent_id"].astype(str).isin(visible_okr_id_set)))
+            ((notes_df["parent_type"] == "OKR") & (notes_df["parent_id"].astype(str).isin(visible_okr_ids)))
             | ((notes_df["parent_type"] == "KR") & (notes_df["parent_id"].astype(str).isin(visible_kpi_ids)))
         ]
     else:
@@ -392,14 +287,11 @@ def tracker():
         quarter=quarter,
         category=category,
         allowed_categories=allowed,
-        stats=stats,
-        okrs=okr_list,
-        chart_data=chart_data,
-        has_any_trend=has_any_trend,
         categories=config.OKR_CATEGORIES,
         creatable_categories=auth.creatable_categories(),
         activity=activity,
-        pace=pace,
+        has_any_trend=bool(view["chart_data"]),
+        **view,
     )
 
 

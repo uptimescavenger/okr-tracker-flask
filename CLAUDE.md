@@ -16,7 +16,7 @@ imports, components, or patterns. All UI is server-rendered Jinja2 HTML with van
 | Frontend | **Jinja2** templates + vanilla JS + plain CSS |
 | Data store | **Google Sheets** (via `gspread`) |
 | Auth | Custom session-based login (`auth_service.py`) |
-| Email | SMTP via `email_service.py` |
+| Email | Gmail API with domain-wide delegation (`email_service.py`) — not SMTP |
 | Deployment | **Render** (Web Service, gunicorn) |
 | Config | Environment variables (set in Render dashboard) |
 
@@ -52,14 +52,15 @@ app.py              # Flask routes, login_required decorator, all API endpoints
 auth_service.py     # Session auth, roles, permissions (can_edit_kr, can_add_note, etc.)
 config.py           # KPI_COLUMNS, OKR_COLUMNS, quarter helpers, category lists
 data.py             # Pure data helpers: kpi_achievement, format_value, build_kpi_trend, etc.
-email_service.py    # SMTP email sending (test email, nudge emails)
+email_service.py    # Gmail API sending (reports, digests, invites, resets)
+views.py            # Tracker page view-model (no Flask context needed)
 sheets.py           # All Google Sheets read/write via gspread; cache layer
 gunicorn.conf.py    # Gunicorn worker config
 render.yaml         # Render deployment manifest
 
 templates/
   base.html         # Shared layout, nav, toast system, loading overlay
-  tracker.html      # Main OKR dashboard (tabs, KR cards, all modals)
+  tracker.html      # Main dashboard: objective drawer + detail pane, all modals
   login.html        # Login page
   account.html      # User account / password change
   admin.html        # Admin panel (user management)
@@ -75,12 +76,15 @@ static/
 ## Key Architectural Patterns
 
 - **No database** — Google Sheets is the single source of truth for OKRs, KRs, notes, and history.
-- **Sheet tabs per quarter** — e.g. `OKRs_Q2_2025`, `KPIs_Q2_2025`. Tab names come from `config.kpi_tab_name()` / `config.okr_tab_name()`.
-- **Caching** — `sheets.py` has an in-process TTL cache (60 s) on all sheet reads to avoid rate limits. Call `sheets.clear_cache()` after any write.
+- **Sheet tabs per quarter** — e.g. `OKRs 2026-Q3`, `KPIs 2026-Q3`, `KPI History 2026-Q3`. Tab names come from `config.okr_tab_name()` / `config.kpi_tab_name()`.
+- **Caching** — `sheets.py` has an in-process TTL cache (600 s, `config.CACHE_TTL_SECONDS`) on all sheet reads to avoid rate limits.
+  Prefer `sheets.invalidate("okrs:<quarter>", ...)` after a write; `sheets.clear_cache()` drops every cached frame.
+  Neither touches the worksheet-handle or header-check caches, which are immutable for the process.
 - **KPI_COLUMNS** — defined in `config.py`. This list is the canonical column order for the KPIs sheet. Always append new columns to the end.
 - **format_value()** — in `data.py`. Renders a numeric value + unit string. Values are always rounded to whole integers before display.
 - **Progress / achievement** — `int(round(...))` everywhere; no decimals displayed to users.
-- **URL hash tab persistence** — `#okr-0`, `#okr-1`, etc. Written by `switchOkrTab()` in `app.js` and restored on `DOMContentLoaded`.
+- **URL hash objective persistence** — `#okr-0`, `#okr-1`, etc. Written by `switchOkrTab()` in `app.js` and restored on `DOMContentLoaded`.
+  Objective order is drag-reorderable and stored per user + quarter in `localStorage`.
 
 ---
 
