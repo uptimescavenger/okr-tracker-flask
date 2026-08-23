@@ -53,20 +53,50 @@ def _filter_okrs_for_user(user: dict, okrs_df: pd.DataFrame) -> pd.DataFrame:
         return okrs_df[okrs_df["category"].isin(user_cats)]
 
 
-def build_user_report(user, okrs_df, kpis_df, notes_df, quarter):
+def _index_frames(kpis_df, notes_df):
+    """Group the shared frames once so per-user reports are dict lookups.
+
+    Every report used to re-scan the whole KPI frame twice per objective and
+    the whole Notes frame once per KR — work that is identical for every
+    recipient. These are the same helpers the tracker page uses.
+    """
+    if not kpis_df.empty and "_achievement" not in kpis_df.columns:
+        kpis_df = kpis_df.copy()
+        kpis_df["_achievement"] = data._compute_achievements_vec(kpis_df)
+    return {
+        "kpis_df": kpis_df,
+        "krs_by_okr": data.group_kpis_by_okr(kpis_df),
+        "notes_by_parent": data.group_notes_by_parent(notes_df),
+        # Same aggregate the tracker page uses, so an objective never shows one
+        # percentage in the UI and a different one in the email.
+        "progress": data.progress_from_achievements(
+            [] if kpis_df.empty else list(kpis_df["okr_id"].astype(str).unique()),
+            kpis_df,
+        ),
+    }
+
+
+def build_user_report(user, okrs_df, kpis_df, notes_df, quarter, idx=None):
     visible_okrs = _filter_okrs_for_user(user, okrs_df)
     if visible_okrs.empty:
         return None
+    if idx is None:
+        idx = _index_frames(kpis_df, notes_df)
+    krs_by_okr = idx["krs_by_okr"]
+    notes_by_parent = idx["notes_by_parent"]
+
     cutoff = datetime.now() - timedelta(days=7)
     okr_reports = []
-    for _, okr_row in visible_okrs.iterrows():
+    for okr_row in visible_okrs.to_dict("records"):
         okr_id = str(okr_row["id"])
-        pct = data.okr_progress_from_krs(okr_id, kpis_df)
+        krs = krs_by_okr.get(okr_id, [])
+        achievements = [float(k.get("_achievement", 0) or 0) for k in krs]
+        pct = idx["progress"].get(okr_id, 0.0)
         color = data.progress_color(pct)
-        krs = data.krs_for_okr(okr_id, kpis_df)
+
         kr_list = []
-        for _, kr_row in krs.iterrows():
-            achievement = data.kpi_achievement(kr_row)
+        collected_notes = list(notes_by_parent.get(("OKR", okr_id), []))
+        for kr_row, achievement in zip(krs, achievements):
             kr_list.append({
                 "name": kr_row.get("name", ""),
                 "current": data.format_value(kr_row.get("current_value", 0), kr_row.get("unit", "")),
@@ -74,34 +104,34 @@ def build_user_report(user, okrs_df, kpis_df, notes_df, quarter):
                 "achievement": round(achievement, 1),
                 "color": data.progress_color(achievement),
             })
+            collected_notes.extend(notes_by_parent.get(("KR", str(kr_row.get("id", ""))), []))
+
         recent_notes = []
-        if not notes_df.empty:
-            okr_notes = data.notes_for(notes_df, "OKR", okr_id)
-            kr_ids = [str(k) for k in krs["id"].tolist()] if not krs.empty else []
-            all_notes_list = list(okr_notes)
-            for kid in kr_ids:
-                all_notes_list.extend(data.notes_for(notes_df, "KR", kid))
-            for n in all_notes_list:
+        for n in collected_notes:
+            ts = n.get("_parsed_ts")
+            if ts is None:
                 try:
                     ts = pd.to_datetime(n.get("timestamp", ""), format="mixed", dayfirst=False)
-                    if pd.notna(ts) and ts >= cutoff:
-                        recent_notes.append({
-                            "author": n.get("author", ""),
-                            "timestamp": str(n.get("timestamp", "")),
-                            "text": str(n.get("text", "")),
-                        })
                 except Exception:
-                    pass
+                    continue
+            if pd.notna(ts) and ts >= cutoff:
+                recent_notes.append({
+                    "author": n.get("author", ""),
+                    "timestamp": str(n.get("timestamp", "")),
+                    "text": str(n.get("text", "")),
+                })
+
         okr_reports.append({
             "title": okr_row.get("title", ""),
             "category": okr_row.get("category", ""),
             "owner": okr_row.get("owner", ""),
-            "progress": round(pct, 1),
+            "progress": pct,
             "color": color,
             "at_risk": pct < 25,
             "krs": kr_list,
             "recent_notes": recent_notes,
         })
+
     total = len(okr_reports)
     avg_progress = round(sum(o["progress"] for o in okr_reports) / total, 1) if total else 0
     at_risk = sum(1 for o in okr_reports if o["at_risk"])
@@ -121,11 +151,11 @@ def find_accessible_krs(user, okrs_df, kpis_df):
     if visible_okrs.empty or kpis_df.empty:
         return []
     cutoff = datetime.now() - timedelta(days=7)
+    krs_by_okr = data.group_kpis_by_okr(kpis_df)
     result = []
-    for _, okr_row in visible_okrs.iterrows():
+    for okr_row in visible_okrs.to_dict("records"):
         okr_id = str(okr_row["id"])
-        krs = data.krs_for_okr(okr_id, kpis_df)
-        for _, kr_row in krs.iterrows():
+        for kr_row in krs_by_okr.get(okr_id, []):
             last_updated = str(kr_row.get("last_updated", ""))
             is_stale = False
             try:
@@ -372,14 +402,24 @@ def send_report(user, okrs_df, kpis_df, notes_df, quarter):
     return _send_email(user["email"], f"OKR Progress Report — {quarter}", html)
 
 
-def send_all_reports(okrs_df, kpis_df, notes_df, quarter):
-    users_df = auth.list_users()
+def _broadcast(okrs_df, kpis_df, notes_df, quarter, subject_prefix, subject):
+    """Send one report per user, grouping the shared frames a single time."""
+    idx = _index_frames(kpis_df, notes_df)
     results = []
-    for _, u in users_df.iterrows():
-        user = u.to_dict()
-        ok, msg = send_report(user, okrs_df, kpis_df, notes_df, quarter)
-        results.append((user.get("email", ""), ok, msg))
+    for u in auth.list_users().to_dict("records"):
+        report = build_user_report(u, okrs_df, kpis_df, notes_df, quarter, idx=idx)
+        if not report:
+            results.append((u.get("email", ""), False, "No data for this user."))
+            continue
+        html = render_report_html(report, subject_prefix)
+        ok, msg = _send_email(u["email"], subject, html)
+        results.append((u.get("email", ""), ok, msg))
     return results
+
+
+def send_all_reports(okrs_df, kpis_df, notes_df, quarter):
+    return _broadcast(okrs_df, kpis_df, notes_df, quarter,
+                      "Progress Report", f"OKR Progress Report — {quarter}")
 
 
 def send_update_request(user, stale_krs, quarter):
@@ -449,15 +489,5 @@ def send_password_reset(email, first_name, reset_url):
 
 
 def send_weekly_digest(okrs_df, kpis_df, notes_df, quarter):
-    users_df = auth.list_users()
-    results = []
-    for _, u in users_df.iterrows():
-        user = u.to_dict()
-        report = build_user_report(user, okrs_df, kpis_df, notes_df, quarter)
-        if not report:
-            results.append((user.get("email", ""), False, "No data for this user."))
-            continue
-        html = render_report_html(report, "Weekly Digest")
-        ok, msg = _send_email(user["email"], f"OKR Weekly Digest — {quarter}", html)
-        results.append((user.get("email", ""), ok, msg))
-    return results
+    return _broadcast(okrs_df, kpis_df, notes_df, quarter,
+                      "Weekly Digest", f"OKR Weekly Digest — {quarter}")

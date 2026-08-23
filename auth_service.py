@@ -8,13 +8,15 @@ Optimizations:
 - Write operations clear cache after mutation
 """
 
+import base64
 import hashlib
 import hmac
-import base64
 import secrets
+import time
 from flask import session
 import pandas as pd
 import config
+import sheets
 
 
 # -- Password hashing --
@@ -74,8 +76,7 @@ def make_reset_token(email: str, purpose: str = "reset", ttl_seconds: int = 3600
     so no sheet writes are needed and revocation happens naturally when the token
     expires. `purpose` lets the landing page adapt copy ("Welcome" vs "Reset").
     """
-    import time as _time
-    expiry = int(_time.time()) + int(ttl_seconds)
+    expiry = int(time.time()) + int(ttl_seconds)
     payload = f"{email.strip().lower()}:{purpose}:{expiry}"
     sig = hmac.new(_reset_key(), payload.encode(), hashlib.sha256).hexdigest()
     return base64.urlsafe_b64encode(f"{payload}:{sig}".encode()).decode()
@@ -83,7 +84,6 @@ def make_reset_token(email: str, purpose: str = "reset", ttl_seconds: int = 3600
 
 def verify_reset_token(token: str) -> tuple[str, str] | None:
     """Return (email, purpose) if the token is valid and unexpired, else None."""
-    import time as _time
     try:
         raw = base64.urlsafe_b64decode(token.encode()).decode()
         email, purpose, expiry_str, sig = raw.rsplit(":", 3)
@@ -91,7 +91,7 @@ def verify_reset_token(token: str) -> tuple[str, str] | None:
         expected = hmac.new(_reset_key(), payload.encode(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(sig, expected):
             return None
-        if int(expiry_str) < int(_time.time()):
+        if int(expiry_str) < int(time.time()):
             return None
         return email, purpose
     except Exception:
@@ -115,13 +115,11 @@ def auto_login_from_cookie(token: str) -> bool:
 # -- Sheet access (uses cached reads) --
 
 def _get_users_ws():
-    import sheets
     return sheets._get_or_create_worksheet(config.users_tab_name(), config.USER_COLUMNS)
 
 
 def _read_users() -> pd.DataFrame:
     """Read users through the cached sheets layer."""
-    import sheets
     return sheets.read_users()
 
 
@@ -132,7 +130,6 @@ def _clear_users_cache():
     quarter's OKR/KPI/history/notes frames — editing one user forced a full
     re-read of the whole spreadsheet.
     """
-    import sheets
     sheets.invalidate("users")
 
 

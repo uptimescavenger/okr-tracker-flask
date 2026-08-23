@@ -10,6 +10,8 @@ Optimizations (v2):
 - _ts_sort_key prefers pre-parsed timestamps; format-guessing is the rare fallback
 """
 
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
 
@@ -213,7 +215,6 @@ def _ts_sort_key(s, parsed=None):
     Prefers the pre-parsed value; format-guessing is the rare fallback."""
     if parsed is not None and pd.notna(parsed):
         return parsed
-    from datetime import datetime
     s = str(s).strip()
     for fmt in ("%m/%d/%Y %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
                 "%m/%d/%Y", "%Y-%m-%d"):

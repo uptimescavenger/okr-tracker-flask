@@ -3,6 +3,35 @@
    Vanilla JS, no framework dependencies
    ══════════════════════════════════════════════ */
 
+// ---------- Shared helpers ----------
+
+// CURRENT_QUARTER is defined on the tracker page; the select is the fallback
+// for any page that renders the picker without the global.
+function currentQuarter() {
+  if (typeof CURRENT_QUARTER !== 'undefined' && CURRENT_QUARTER) return CURRENT_QUARTER;
+  return document.getElementById('quarterSelect')?.value || '';
+}
+
+// Escapes for both text nodes and quoted attribute values.
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Every mutation currently re-renders the page; keep that in one place so the
+// toast/close/reload sequence can't drift between call sites.
+function reloadAfter(message, opts) {
+  const o = opts || {};
+  if (message) showToast(message, 'success');
+  if (o.modal) closeModal(o.modal);
+  showLoading('Reloading...');
+  setTimeout(() => {
+    if (o.beforeReload) o.beforeReload();
+    location.reload();
+  }, o.delay || 100);
+}
+
 // ---------- Loading Overlay ----------
 
 function showLoading(message) {
@@ -221,9 +250,7 @@ function changeCategory(cat) {
 
 function refreshData() {
   apiGet('/api/refresh', 'Refreshing data...').then(() => {
-    showToast('Data refreshed', 'success');
-    showLoading('Reloading...');
-    setTimeout(() => location.reload(), 300);
+    reloadAfter('Data refreshed', { delay: 300 });
   });
 }
 
@@ -307,7 +334,7 @@ function closeAccountMenu() {
 
 function _okrOrderKey() {
   const email = (typeof USER_EMAIL !== 'undefined' && USER_EMAIL) ? USER_EMAIL : 'anon';
-  const q = (typeof CURRENT_QUARTER !== 'undefined' && CURRENT_QUARTER) ? CURRENT_QUARTER : 'na';
+  const q = currentQuarter() || 'na';
   return 'okrOrder:' + email + ':' + q;
 }
 
@@ -453,8 +480,7 @@ function submitAddOkr() {
     { id: 'okrOwner', label: 'Owner' },
   ])) return;
 
-  const quarter = typeof CURRENT_QUARTER !== 'undefined' ? CURRENT_QUARTER :
-    document.getElementById('quarterSelect')?.value || '';
+  const quarter = currentQuarter();
   apiPost('/api/okr/add', {
     quarter: quarter,
     title: document.getElementById('okrTitle').value,
@@ -464,17 +490,15 @@ function submitAddOkr() {
     category: document.getElementById('okrCategory').value,
   }, 'Creating objective...').then(r => {
     if (r.ok) {
-      showToast('Objective created', 'success');
-      closeModal('addOkrModal');
-      showLoading('Reloading...');
       // The new objective is appended, so it lands at the end of the list.
       // (This counted '.okr-tab', a class the Focus Board layout removed, so it
       //  always resolved to 0 and sent you back to the first objective.)
       const newIdx = document.querySelectorAll('.oitem').length;
-      setTimeout(() => {
-        window.location.hash = '#okr-' + newIdx;
-        location.reload();
-      }, 500);
+      reloadAfter('Objective created', {
+        modal: 'addOkrModal',
+        delay: 500,
+        beforeReload: () => { window.location.hash = '#okr-' + newIdx; },
+      });
     }
   });
 }
@@ -495,8 +519,7 @@ function submitEditOkr() {
     { id: 'editOkrOwner', label: 'Owner' },
   ])) return;
 
-  const quarter = typeof CURRENT_QUARTER !== 'undefined' ? CURRENT_QUARTER :
-    document.getElementById('quarterSelect')?.value || '';
+  const quarter = currentQuarter();
   apiPost('/api/okr/edit', {
     quarter: quarter,
     id: document.getElementById('editOkrId').value,
@@ -507,10 +530,7 @@ function submitEditOkr() {
     category: document.getElementById('editOkrCategory').value,
   }, 'Saving objective...').then(r => {
     if (r.ok) {
-      showToast('Objective updated', 'success');
-      closeModal('editOkrModal');
-      showLoading('Reloading...');
-      setTimeout(() => location.reload(), 100);
+      reloadAfter('Objective updated', { modal: 'editOkrModal' });
     }
   });
 }
@@ -528,10 +548,7 @@ function submitMoveOkr() {
     new_quarter: document.getElementById('moveOkrQuarter').value,
   }, 'Moving objective...').then(r => {
     if (r.ok) {
-      showToast('Objective moved', 'success');
-      closeModal('moveOkrModal');
-      showLoading('Reloading...');
-      setTimeout(() => location.reload(), 100);
+      reloadAfter('Objective moved', { modal: 'moveOkrModal' });
     }
   });
 }
@@ -541,9 +558,7 @@ function deleteOkr(okrId, quarter, category) {
     apiPost('/api/okr/delete', { id: okrId, quarter: quarter, category: category }, 'Deleting objective...')
       .then(r => {
         if (r.ok) {
-          showToast('Objective deleted', 'success');
-          showLoading('Reloading...');
-          setTimeout(() => location.reload(), 100);
+          reloadAfter('Objective deleted');
         }
       });
   });
@@ -570,8 +585,7 @@ function submitAddKr() {
     { id: 'krBaseline', label: 'Baseline Value' },
   ])) return;
 
-  const quarter = typeof CURRENT_QUARTER !== 'undefined' ? CURRENT_QUARTER :
-    document.getElementById('quarterSelect')?.value || '';
+  const quarter = currentQuarter();
   apiPost('/api/kr/add', {
     quarter: quarter,
     okr_id: document.getElementById('krOkrId').value,
@@ -585,11 +599,9 @@ function submitAddKr() {
     description: document.getElementById('krDescription').value,
   }, 'Creating key result...').then(r => {
     if (r.ok) {
-      showToast('Key Result created', 'success');
-      closeModal('addKrModal');
-      showLoading('Reloading...');
-      // Stay on same OKR tab (hash is already set from switchOkrTab)
-      setTimeout(() => location.reload(), 100);
+      // The hash is already set by switchOkrTab, so the reload lands back
+      // on the objective the KR was added to.
+      reloadAfter('Key Result created', { modal: 'addKrModal' });
     }
   });
 }
@@ -618,7 +630,6 @@ function openEditKrModal(kr) {
     sel.innerHTML = options.map(o => {
       const label = o.category ? `${o.title} — ${o.category}` : o.title;
       const selected = String(o.id) === String(kr.okr_id) ? ' selected' : '';
-      const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       return `<option value="${esc(o.id)}"${selected}>${esc(label)}</option>`;
     }).join('');
     sel.dataset.original = kr.okr_id;
@@ -634,8 +645,7 @@ function submitEditKr() {
     { id: 'editKrBaseline', label: 'Baseline Value' },
   ])) return;
 
-  const quarter = typeof CURRENT_QUARTER !== 'undefined' ? CURRENT_QUARTER :
-    document.getElementById('quarterSelect')?.value || '';
+  const quarter = currentQuarter();
   apiPost('/api/kr/edit', {
     quarter: quarter,
     id: document.getElementById('editKrId').value,
@@ -649,10 +659,7 @@ function submitEditKr() {
     description: document.getElementById('editKrDescription').value,
   }, 'Saving key result...').then(r => {
     if (r.ok) {
-      showToast('Key Result updated', 'success');
-      closeModal('editKrModal');
-      showLoading('Reloading...');
-      setTimeout(() => location.reload(), 100);
+      reloadAfter('Key Result updated', { modal: 'editKrModal' });
     }
   });
 }
@@ -672,8 +679,7 @@ function submitUpdateKr() {
     { id: 'updateKrValue', label: 'New Value' },
   ])) return;
 
-  const quarter = typeof CURRENT_QUARTER !== 'undefined' ? CURRENT_QUARTER :
-    document.getElementById('quarterSelect')?.value || '';
+  const quarter = currentQuarter();
   const krId = document.getElementById('updateKrId').value;
   const noteText = document.getElementById('updateKrNote').value.trim();
 
@@ -687,10 +693,8 @@ function submitUpdateKr() {
     note: noteText,
   }, noteText ? 'Saving value and note...' : 'Updating value...').then(r => {
     if (r.ok) {
-      closeModal('updateKrModal');
-      showToast(noteText ? 'Value and note saved' : 'Value updated', 'success');
-      showLoading('Reloading...');
-      setTimeout(() => location.reload(), 100);
+      reloadAfter(noteText ? 'Value and note saved' : 'Value updated',
+                  { modal: 'updateKrModal' });
     }
   });
 }
@@ -700,9 +704,7 @@ function deleteKr(krId, okrId, quarter, category) {
     apiPost('/api/kr/delete', { id: krId, okr_id: okrId, quarter: quarter, category: category }, 'Deleting key result...')
       .then(r => {
         if (r.ok) {
-          showToast('Key Result deleted', 'success');
-          showLoading('Reloading...');
-          setTimeout(() => location.reload(), 100);
+          reloadAfter('Key Result deleted');
         }
       });
   });
@@ -726,7 +728,7 @@ function addNote(parentType, parentId, inputId) {
       noteCard.className = 'note-card';
       noteCard.innerHTML = '<div class="note-meta"><span class="note-author">' + r.author +
         '</span><span class="note-timestamp">' + r.timestamp + '</span></div>' +
-        '<div class="note-text">' + escapeHtml(text) + '</div>';
+        '<div class="note-text">' + esc(text) + '</div>';
       notesList.insertBefore(noteCard, input.closest('.note-form'));
       input.value = '';
       showToast('Note added', 'success');
@@ -734,11 +736,6 @@ function addNote(parentType, parentId, inputId) {
   });
 }
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 // ---------- Page Load Loading State ----------
 

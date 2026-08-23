@@ -13,11 +13,13 @@ Optimizations (v2):
 
 import time
 import threading
+from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
 import pandas as pd
 
 import config
+import data
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -302,21 +304,31 @@ def _find_row_or_lookup(cache_key: str, ws: gspread.Worksheet, record_id: str) -
     return cell.row if cell else None
 
 
+def _write_row_fields(ws, columns: list[str], row_num: int, fields: dict):
+    """Read a sheet row, overwrite named columns, write it back.
+
+    Sheets has no partial-row update through gspread's `update`, so the row has
+    to be round-tripped. Centralised here because four call sites had their own
+    copy of the read / pad / assign-by-column-index / write sequence.
+    """
+    row_values = ws.row_values(row_num)
+    if len(row_values) < len(columns):
+        row_values.extend([""] * (len(columns) - len(row_values)))
+    for col_name, value in fields.items():
+        row_values[columns.index(col_name)] = value
+    ws.update(f"A{row_num}", [row_values], value_input_option="USER_ENTERED")
+
+
 def _sync_okr_progress(quarter: str, okr_id: str, kpis_df, updated_at: str):
     """Recompute and write OKR progress without re-reading the KPIs sheet."""
-    from data import okr_progress_from_krs
-    progress = okr_progress_from_krs(okr_id, kpis_df)
+    progress = data.okr_progress_from_krs(okr_id, kpis_df)
     okr_cache_key = f"okrs:{quarter}"
     ws = _get_or_create_worksheet(config.okr_tab_name(quarter), config.OKR_COLUMNS)
     row_num = _find_row_or_lookup(okr_cache_key, ws, okr_id)
     if row_num is None:
         return
-    row_values = ws.row_values(row_num)
-    while len(row_values) < len(config.OKR_COLUMNS):
-        row_values.append("")
-    row_values[config.OKR_COLUMNS.index("progress")] = progress
-    row_values[config.OKR_COLUMNS.index("last_updated")] = updated_at
-    ws.update(f"A{row_num}", [row_values], value_input_option="USER_ENTERED")
+    _write_row_fields(ws, config.OKR_COLUMNS, row_num,
+                      {"progress": progress, "last_updated": updated_at})
 
 
 def update_kpi_value(
@@ -328,12 +340,8 @@ def update_kpi_value(
     row_num = _find_row_or_lookup(kpi_cache_key, ws, kpi_id)
     if row_num is None:
         raise ValueError(f"Key Result id '{kpi_id}' not found")
-    row_values = ws.row_values(row_num)
-    while len(row_values) < len(config.KPI_COLUMNS):
-        row_values.append("")
-    row_values[config.KPI_COLUMNS.index("current_value")] = value
-    row_values[config.KPI_COLUMNS.index("last_updated")] = updated_at
-    ws.update(f"A{row_num}", [row_values], value_input_option="USER_ENTERED")
+    _write_row_fields(ws, config.KPI_COLUMNS, row_num,
+                      {"current_value": value, "last_updated": updated_at})
 
     # Append history (with author when provided)
     history_tab = f"KPI History {quarter}"
@@ -388,36 +396,24 @@ def add_kpi(quarter: str, row: list):
     _cache_invalidate(f"kpis:{quarter}")
 
 
-def update_okr_fields(quarter: str, okr_id: str, fields: dict):
-    cache_key = f"okrs:{quarter}"
-    ws = _get_or_create_worksheet(config.okr_tab_name(quarter), config.OKR_COLUMNS)
-    row_num = _find_row_or_lookup(cache_key, ws, okr_id)
+def _update_record_fields(tab: str, columns: list[str], cache_key: str,
+                          record_id: str, fields: dict, label: str):
+    ws = _get_or_create_worksheet(tab, columns)
+    row_num = _find_row_or_lookup(cache_key, ws, record_id)
     if row_num is None:
-        raise ValueError(f"OKR id '{okr_id}' not found")
-    row_values = ws.row_values(row_num)
-    while len(row_values) < len(config.OKR_COLUMNS):
-        row_values.append("")
-    for col_name, value in fields.items():
-        col_idx = config.OKR_COLUMNS.index(col_name)
-        row_values[col_idx] = value
-    ws.update(f"A{row_num}", [row_values], value_input_option="USER_ENTERED")
+        raise ValueError(f"{label} id '{record_id}' not found")
+    _write_row_fields(ws, columns, row_num, fields)
     _cache_invalidate(cache_key)
+
+
+def update_okr_fields(quarter: str, okr_id: str, fields: dict):
+    _update_record_fields(config.okr_tab_name(quarter), config.OKR_COLUMNS,
+                          f"okrs:{quarter}", okr_id, fields, "OKR")
 
 
 def update_kpi_fields(quarter: str, kpi_id: str, fields: dict):
-    cache_key = f"kpis:{quarter}"
-    ws = _get_or_create_worksheet(config.kpi_tab_name(quarter), config.KPI_COLUMNS)
-    row_num = _find_row_or_lookup(cache_key, ws, kpi_id)
-    if row_num is None:
-        raise ValueError(f"Key Result id '{kpi_id}' not found")
-    row_values = ws.row_values(row_num)
-    while len(row_values) < len(config.KPI_COLUMNS):
-        row_values.append("")
-    for col_name, value in fields.items():
-        col_idx = config.KPI_COLUMNS.index(col_name)
-        row_values[col_idx] = value
-    ws.update(f"A{row_num}", [row_values], value_input_option="USER_ENTERED")
-    _cache_invalidate(cache_key)
+    _update_record_fields(config.kpi_tab_name(quarter), config.KPI_COLUMNS,
+                          f"kpis:{quarter}", kpi_id, fields, "Key Result")
 
 
 # ---------- Move ----------
@@ -513,7 +509,6 @@ def delete_kpi(quarter: str, kpi_id: str, okr_id: str):
 
     # Single invalidation + re-read + sync (instead of double clear_cache)
     _cache_invalidate(kpi_cache_key)
-    from datetime import datetime
     now = datetime.now().strftime("%m/%d/%Y %H:%M")
     fresh_kpis = read_kpis(quarter)
     _sync_okr_progress(quarter, okr_id, fresh_kpis, now)
