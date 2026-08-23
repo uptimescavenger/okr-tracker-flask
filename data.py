@@ -77,15 +77,31 @@ def okr_progress_from_krs(okr_id: str, kpis_df: pd.DataFrame) -> float:
     return round(achievements.mean(), 1)
 
 
+def progress_from_achievements(okr_ids: list[str], kpis_df: pd.DataFrame) -> dict[str, float]:
+    """OKR progress = mean of its KRs' achievement.
+
+    Expects `_achievement` to already be present, so the caller can compute it
+    once and reuse it for both the per-KR display and this aggregate.
+    """
+    if kpis_df.empty or not okr_ids or "_achievement" not in kpis_df.columns:
+        return {oid: 0.0 for oid in okr_ids}
+    means = (
+        kpis_df.groupby(kpis_df["okr_id"].astype(str))["_achievement"]
+        .mean().round(1).to_dict()
+    )
+    return {oid: float(means.get(str(oid), 0.0)) for oid in okr_ids}
+
+
 def compute_all_progress(okr_ids: list[str], kpis_df: pd.DataFrame) -> dict[str, float]:
-    """Compute progress for all OKRs in one vectorized pass."""
+    """Compute progress for all OKRs in one vectorized pass.
+
+    Standalone entry point for callers that don't already hold `_achievement`.
+    """
     if kpis_df.empty or not okr_ids:
         return {oid: 0.0 for oid in okr_ids}
     df = kpis_df.copy()
     df["_achievement"] = _compute_achievements_vec(df)
-    df["_okr_id"] = df["okr_id"].astype(str)
-    means = df.groupby("_okr_id")["_achievement"].mean().round(1).to_dict()
-    return {oid: float(means.get(str(oid), 0.0)) for oid in okr_ids}
+    return progress_from_achievements(okr_ids, df)
 
 
 # ---------- Pre-grouping helpers (called once per request, used in nested loops) ----------
@@ -167,24 +183,6 @@ def okr_summary_stats_from_progress(progress_map: dict[str, float]) -> dict:
         "at_risk": sum(1 for v in values if v < 25),
     }
 
-
-def build_kpi_trend(history_df: pd.DataFrame, kpi_id: str) -> list[dict]:
-    """Build trend data using pre-parsed _parsed_date column."""
-    if history_df.empty:
-        return []
-    subset = history_df[history_df["kpi_id"].astype(str) == str(kpi_id)]
-    if subset.empty:
-        return []
-    if "_parsed_date" in subset.columns:
-        sorted_df = subset.dropna(subset=["_parsed_date"]).sort_values("_parsed_date")
-        return [{"date": r["_parsed_date"].strftime("%Y-%m-%d"), "value": r["value"]}
-                for r in sorted_df.to_dict("records")]
-    else:
-        subset = subset.copy()
-        subset["_d"] = pd.to_datetime(subset["date"], format="mixed", dayfirst=False, errors="coerce")
-        sorted_df = subset.dropna(subset=["_d"]).sort_values("_d")
-        return [{"date": r["_d"].strftime("%Y-%m-%d"), "value": r["value"]}
-                for r in sorted_df.to_dict("records")]
 
 
 def notes_for(notes_df: pd.DataFrame, parent_type: str, parent_id: str) -> list[dict]:

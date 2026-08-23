@@ -227,15 +227,6 @@ function refreshData() {
   });
 }
 
-// ---------- Mobile Sidebar ----------
-
-function toggleSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  const overlay = document.getElementById('mobileOverlay');
-  sidebar.classList.toggle('mobile-open');
-  overlay.classList.toggle('active');
-}
-
 // ---------- Objective switching (Focus Board) ----------
 
 // Match by data-okr-idx (a stable identity, not DOM position) so drag-reordering
@@ -476,10 +467,12 @@ function submitAddOkr() {
       showToast('Objective created', 'success');
       closeModal('addOkrModal');
       showLoading('Reloading...');
-      // Navigate to last tab (newly created OKR will be appended)
-      const totalTabs = document.querySelectorAll('.okr-tab').length;
+      // The new objective is appended, so it lands at the end of the list.
+      // (This counted '.okr-tab', a class the Focus Board layout removed, so it
+      //  always resolved to 0 and sent you back to the first objective.)
+      const newIdx = document.querySelectorAll('.oitem').length;
       setTimeout(() => {
-        window.location.hash = '#okr-' + totalTabs;
+        window.location.hash = '#okr-' + newIdx;
         location.reload();
       }, 500);
     }

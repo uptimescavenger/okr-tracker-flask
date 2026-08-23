@@ -8,7 +8,6 @@ Optimizations (v2):
 - Headers verified once per process (not per cache miss)
 - Granular cache invalidation — only the affected sheet's key is cleared on writes
 - Fixed double clear_cache() in update_kpi_value/delete_kpi (1 sync, not 2)
-- batch_read_quarter() fetches OKRs + KPIs + History in a single batch_get call
 - Cache TTL configurable via config.CACHE_TTL_SECONDS (default 600s)
 """
 
@@ -106,15 +105,22 @@ def _row_index_get(cache_key: str) -> dict[str, int] | None:
 
 
 def clear_cache():
-    """Nuke everything — preserved for compatibility but most callers should use _cache_invalidate()."""
+    """Drop all cached sheet DATA, forcing the next read to hit Sheets.
+
+    Deliberately keeps `_ws_cache` and `_headers_checked`: worksheet handles and
+    "these headers are correct" are immutable for the life of the process, and
+    re-establishing them costs one `ss.worksheet()` plus one `row_values(1)` per
+    tab — 8 wasted round-trips every time someone clicks Refresh.
+    """
     with _cache_lock:
         _cache.clear()
     with _row_index_lock:
         _row_index.clear()
-    with _ws_cache_lock:
-        _ws_cache.clear()
-    with _headers_checked_lock:
-        _headers_checked.clear()
+
+
+def invalidate(*keys: str):
+    """Public granular invalidation, for callers outside this module."""
+    _cache_invalidate(*keys)
 
 
 # ---------- Worksheet helpers ----------

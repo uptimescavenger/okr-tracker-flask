@@ -274,14 +274,14 @@ def tracker():
     if not history_df.empty:
         history_df = history_df[history_df["kpi_id"].astype(str).isin(visible_kpi_ids)]
 
-    # Compute all OKR progress in one vectorized pass
-    progress_map = data.compute_all_progress(visible_okr_ids, kpis_df)
-    stats = data.okr_summary_stats_from_progress(progress_map)
-
-    # Pre-compute per-KR achievement once (vectorized) to avoid recomputing in the loop
+    # Achievement per KR, then OKR progress as the mean of its KRs — one
+    # vectorized pass over one copy. (compute_all_progress() used to do its own
+    # copy + its own identical pass, so this ran twice per request.)
     if not kpis_df.empty:
         kpis_df = kpis_df.copy()
         kpis_df["_achievement"] = data._compute_achievements_vec(kpis_df)
+    progress_map = data.progress_from_achievements(visible_okr_ids, kpis_df)
+    stats = data.okr_summary_stats_from_progress(progress_map)
 
     # Pre-group everything once — eliminates N*M filter scans inside the render loop
     krs_by_okr = data.group_kpis_by_okr(kpis_df)
@@ -405,6 +405,32 @@ def tracker():
 
 # ---------- API routes for AJAX actions ----------
 
+def _okr_category(quarter: str, okr_id: str) -> str:
+    """Look up an objective's real category.
+
+    Permission checks must never key off a category supplied by the caller: a
+    Manager could otherwise delete a Corporate objective just by POSTing
+    {"id": "<corporate id>", "category": "Growth"}. read_okrs() is TTL-cached,
+    so in the common case this is a dict lookup, not a Sheets round-trip.
+    """
+    okrs_df = sheets.read_okrs(quarter)
+    if okrs_df.empty:
+        return ""
+    row = okrs_df[okrs_df["id"].astype(str) == str(okr_id)]
+    return "" if row.empty else str(row.iloc[0].get("category", ""))
+
+
+def _kr_category(quarter: str, kr_id: str) -> str:
+    """Category of the objective a key result belongs to."""
+    kpis_df = sheets.read_kpis(quarter)
+    if kpis_df.empty:
+        return ""
+    row = kpis_df[kpis_df["id"].astype(str) == str(kr_id)]
+    if row.empty:
+        return ""
+    return _okr_category(quarter, str(row.iloc[0].get("okr_id", "")))
+
+
 @app.route("/api/refresh")
 @login_required
 def api_refresh():
@@ -455,8 +481,8 @@ def api_edit_okr():
 @login_required
 def api_delete_okr():
     d = request.json
-    cat = d.get("category", "")
-    if not auth.can_delete_okr(cat):
+    quarter = d.get("quarter", config.current_quarter())
+    if not auth.can_delete_okr(_okr_category(quarter, d.get("id", ""))):
         return jsonify({"ok": False, "error": "Permission denied"}), 403
     sheets.delete_okr(d.get("quarter", config.current_quarter()), d.get("id"))
     return jsonify({"ok": True})
@@ -479,16 +505,8 @@ def api_add_kr():
         return jsonify({"ok": False, "error": "Permission denied"}), 403
     d = request.json
     quarter = d.get("quarter", config.current_quarter())
-    # Enforce category-level restriction for Managers.
-    # Trust the client-supplied category if present (avoids a Sheets read on hot path);
-    # fall back to a sheet lookup only if the client didn't send it. Admins bypass the
-    # check entirely via can_create_kr_in_category.
-    category = d.get("category", None)
-    if category is None:
-        okr_id = d.get("okr_id", "")
-        okrs_df = sheets.read_okrs(quarter)
-        okr_row = okrs_df[okrs_df["id"] == str(okr_id)]
-        category = okr_row.iloc[0].get("category", "") if not okr_row.empty else ""
+    # Resolve the category from the sheet, never from the request body.
+    category = _okr_category(quarter, d.get("okr_id", ""))
     if not auth.can_create_kr_in_category(category):
         return jsonify({"ok": False, "error": "Permission denied"}), 403
     kr_id = str(uuid.uuid4())[:8]
@@ -578,8 +596,8 @@ def api_update_kr():
 @login_required
 def api_delete_kr():
     d = request.json
-    cat = d.get("category", "")
-    if not auth.can_delete_kr(cat):
+    quarter = d.get("quarter", config.current_quarter())
+    if not auth.can_delete_kr(_kr_category(quarter, d.get("id", ""))):
         return jsonify({"ok": False, "error": "Permission denied"}), 403
     sheets.delete_kpi(d.get("quarter", config.current_quarter()), d["id"], d["okr_id"])
     return jsonify({"ok": True})
@@ -827,6 +845,5 @@ def server_error(e):
 
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)

@@ -36,7 +36,7 @@
           <span class="role-badge role-{{ user.role|replace(' ', '') }}">{{ user.role }}</span>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn btn-secondary btn-sm" onclick='openEditUserModal({{ user|tojson }})'>Edit</button>
+          <button class="btn btn-secondary btn-sm" onclick='openEditUserModal({{ {"email":user.email,"first_name":user.first_name,"last_name":user.last_name,"role":user.role,"categories":user.categories}|tojson }})'>Edit</button>
           <button class="btn btn-secondary btn-sm" onclick='sendInvite("{{ user.email }}")'>Resend Invite</button>
           <button class="btn btn-secondary btn-sm" onclick='openResetPwModal("{{ user.email }}")'>Reset PW</button>
           <button class="btn btn-secondary btn-sm" style="color:var(--danger);border-color:#fecaca;" onclick='deleteUser("{{ user.email }}")'>Delete</button>

@@ -126,9 +126,14 @@ def _read_users() -> pd.DataFrame:
 
 
 def _clear_users_cache():
-    """Clear cache after user mutations."""
+    """Invalidate only the users cache after a user mutation.
+
+    Previously called sheets.clear_cache(), which also threw away every
+    quarter's OKR/KPI/history/notes frames — editing one user forced a full
+    re-read of the whole spreadsheet.
+    """
     import sheets
-    sheets.clear_cache()
+    sheets.invalidate("users")
 
 
 def seed_admin():
@@ -215,22 +220,88 @@ def allowed_filter_options() -> list[str]:
         return user_categories()
 
 
-def can_create_okr() -> bool:
-    return user_role() in ("Admin", "Manager")
+# -- Permissions --
+#
+# One underlying rule, expressed once:
+#   Admin        -> everything
+#   Manager      -> their own categories, never Corporate
+#   Team Member  -> may update values and add notes, nothing structural
+#
+# The named wrappers below are the public API (templates call them by name);
+# they exist for readability, not because the rule differs between them.
 
-def can_create_okr_in_category(category: str) -> bool:
-    """Check if user can create an OKR in a specific category."""
+_WRITERS = ("Admin", "Manager")
+
+
+def _is_writer() -> bool:
+    """May perform structural changes at all (create/edit objectives and KRs)."""
+    return user_role() in _WRITERS
+
+
+def _may_write_category(category: str, *, allow_blank: bool) -> bool:
+    """Whether the current user may act on a record in `category`.
+
+    `allow_blank` keeps a real difference in the original behaviour: creating
+    permits an empty category, deleting refuses it.
+    """
     role = user_role()
     if role == "Admin":
         return True
-    if role == "Manager":
-        if category == "Corporate":
-            return False
-        return category in user_categories() or category == ""
-    return False
+    if role != "Manager":
+        return False
+    if category == "Corporate":
+        return False
+    if category == "":
+        return allow_blank
+    return category in user_categories()
+
+
+def can_create_okr() -> bool:
+    return _is_writer()
+
+
+def can_create_kr() -> bool:
+    return _is_writer()
+
+
+def can_edit_okr() -> bool:
+    return _is_writer()
+
+
+def can_edit_kr() -> bool:
+    return _is_writer()
+
+
+def can_access_reports() -> bool:
+    return _is_writer()
+
+
+def can_create_okr_in_category(category: str) -> bool:
+    return _may_write_category(category, allow_blank=True)
+
+
+def can_create_kr_in_category(category: str) -> bool:
+    return _may_write_category(category, allow_blank=True)
+
+
+def can_delete_okr(category: str = "") -> bool:
+    return _may_write_category(category, allow_blank=False)
+
+
+def can_delete_kr(category: str = "") -> bool:
+    return _may_write_category(category, allow_blank=False)
+
+
+def can_update_kr() -> bool:
+    return True
+
+
+def can_add_note() -> bool:
+    return True
+
 
 def creatable_categories() -> list[str]:
-    """Return the list of categories the current user can create OKRs in."""
+    """Categories the current user may create objectives in."""
     role = user_role()
     if role == "Admin":
         return config.OKR_CATEGORIES
@@ -238,77 +309,11 @@ def creatable_categories() -> list[str]:
         return [c for c in user_categories() if c != "Corporate"]
     return []
 
-def can_create_kr() -> bool:
-    return user_role() in ("Admin", "Manager")
-
-def can_create_kr_in_category(category: str) -> bool:
-    """Check if user can create a KR in a specific OKR's category.
-    Mirrors can_create_okr_in_category — Managers cannot touch Corporate."""
-    role = user_role()
-    if role == "Admin":
-        return True
-    if role == "Manager":
-        if category == "Corporate":
-            return False
-        return category in user_categories() or category == ""
-    return False
-
-def can_edit_okr() -> bool:
-    return user_role() in ("Admin", "Manager")
-
-def can_edit_kr() -> bool:
-    return user_role() in ("Admin", "Manager")
-
-def can_update_kr() -> bool:
-    return True
-
-def can_add_note() -> bool:
-    return True
-
-def can_delete_okr(category: str = "") -> bool:
-    role = user_role()
-    if role == "Admin":
-        return True
-    if role == "Manager":
-        if category == "Corporate" or category == "":
-            return False
-        return category in user_categories()
-    return False
-
-def can_delete_kr(category: str = "") -> bool:
-    role = user_role()
-    if role == "Admin":
-        return True
-    if role == "Manager":
-        if category == "Corporate" or category == "":
-            return False
-        return category in user_categories()
-    return False
 
 def is_admin() -> bool:
     return user_role() == "Admin"
 
-def can_access_reports() -> bool:
-    return user_role() in ("Admin", "Manager")
 
-
-def list_users_for_reports() -> pd.DataFrame:
-    all_users = _read_users()
-    if all_users.empty:
-        return all_users
-    role = user_role()
-    if role == "Admin":
-        return all_users
-    my_cats = set(user_categories())
-    mask = []
-    for _, row in all_users.iterrows():
-        u_cats_str = str(row.get("categories", ""))
-        if u_cats_str.lower() == "all":
-            mask.append(bool(my_cats))
-        else:
-            u_cats = {c.strip() for c in u_cats_str.split(",") if c.strip()}
-            mask.append(bool(my_cats & u_cats))
-    return all_users[mask].reset_index(drop=True)
 
 
 # -- User CRUD (admin) --

@@ -79,89 +79,6 @@ body {
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* -- Layout -- */
-.app-layout {
-  display: flex;
-  min-height: 100vh;
-}
-
-.sidebar {
-  width: 260px;
-  background: var(--gradient-sidebar);
-  border-right: 1px solid var(--border-light);
-  padding: 20px 16px;
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 100;
-  overflow-y: auto;
-}
-
-.main-content {
-  flex: 1;
-  margin-left: 260px;
-  padding: 24px 32px;
-  min-height: 100vh;
-}
-
-/* -- Sidebar -- */
-.sidebar-brand {
-  text-align: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.sidebar-brand img {
-  width: 100%;
-  max-width: 140px;
-  margin-bottom: 8px;
-}
-
-.sidebar-brand h1 {
-  font-size: 1.5rem;
-  font-weight: 800;
-  background: var(--gradient-brand);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.sidebar-section {
-  margin-bottom: 8px;
-}
-
-.sidebar-section-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 8px 14px 4px;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 14px;
-  border-radius: var(--radius-nav);
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-decoration: none;
-}
-
-.nav-item:hover {
-  background: var(--primary-bg);
-  color: var(--text-primary);
-  text-decoration: none;
-}
 
 .nav-item.active {
   background: var(--gradient-primary);
@@ -170,28 +87,6 @@ a:hover { text-decoration: underline; }
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
-.nav-item svg { flex-shrink: 0; }
-
-.sidebar-user {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-light);
-}
-
-.sidebar-user-info {
-  padding: 8px 14px;
-  font-size: 0.85rem;
-}
-
-.sidebar-user-info .name { font-weight: 600; color: var(--text-primary); }
-.sidebar-user-info .role { font-size: 0.72rem; color: var(--text-muted); }
-
-.nav-item.sign-out {
-  color: var(--danger);
-}
-.nav-item.sign-out:hover {
-  background: #fef2f2;
-}
 
 /* -- Buttons -- */
 .btn {
@@ -252,27 +147,9 @@ a:hover { text-decoration: underline; }
 
 /* Primary-action buttons that should stand out (1.5x of btn-sm).
    Use on top-level CRUD entry points: + Add Objective, + Key Result, Submit Update. */
-.btn-action-lg {
-  padding: 6px 18px;
-  font-size: 1.08rem;
-  gap: 8px;
-}
-.btn-action-lg svg {
-  width: 18px;
-  height: 18px;
-}
 
 /* Secondary-action buttons that should fade into the background (75% of btn-sm).
    Use on demoted CRUD: Edit / Delete on each KR card. */
-.btn-action-sm {
-  padding: 3px 9px;
-  font-size: 0.6rem;
-  gap: 4px;
-}
-.btn-action-sm svg {
-  width: 10px;
-  height: 10px;
-}
 
 .btn-block { width: 100%; justify-content: center; }
 
@@ -289,105 +166,6 @@ a:hover { text-decoration: underline; }
   box-shadow: var(--shadow-card-hover);
 }
 
-/* -- Metric cards -- */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.metric-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius);
-  padding: 16px 20px;
-  box-shadow: var(--shadow-card);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.metric-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card-hover);
-}
-
-.metric-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 4px;
-}
-
-.metric-value {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: var(--text-primary);
-}
-
-/* -- Filter bar -- */
-.filter-bar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: var(--gradient-app);
-  border-bottom: 1px solid var(--border-light);
-  box-shadow: 0 2px 8px var(--primary-shadow-light);
-  backdrop-filter: blur(12px);
-  padding: 16px 0;
-  margin: -24px -32px 24px -32px;
-  padding: 16px 32px;
-}
-
-.filter-bar-inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-}
-
-.filter-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.quarter-select {
-  padding: 6px 12px;
-  border: 2px solid var(--border-input);
-  border-radius: var(--radius);
-  background: white;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  cursor: pointer;
-  outline: none;
-}
-
-.quarter-select:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
-}
-
-.category-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.pill-btn {
-  padding: 6px 16px;
-  border-radius: var(--radius);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  font-family: inherit;
-}
 
 .pill-btn.active {
   background: var(--gradient-primary);
@@ -446,12 +224,6 @@ a:hover { text-decoration: underline; }
   background: var(--primary-bg-hover);
 }
 
-.progress-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
 
 /* -- OKR Card -- */
 .okr-card {
@@ -463,19 +235,6 @@ a:hover { text-decoration: underline; }
   margin-bottom: 24px;
 }
 
-.okr-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 20px 24px 12px;
-}
-
-.okr-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  flex: 1;
-}
 
 .okr-pct {
   font-size: clamp(1.4rem, 3vw, 2.2rem);
@@ -484,65 +243,11 @@ a:hover { text-decoration: underline; }
   white-space: nowrap;
 }
 
-.okr-progress-bar {
-  margin: 0 24px 12px;
-}
-
-.okr-pills {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 0 24px 16px;
-}
 
 /* Right-aligned action button inside the pills row (e.g. + Key Result).
    margin-left:auto pushes it to the far right while still wrapping cleanly
    on narrow viewports. */
-.okr-pills .pills-action {
-  margin-left: auto;
-}
 
-.info-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: var(--radius);
-  font-size: 0.8rem;
-}
-
-.pill-owner { background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe; }
-.pill-category { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-.pill-date { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
-.pill-updated { background: #fce7f3; color: #be185d; border: 1px solid #fbcfe8; }
-
-.okr-actions {
-  display: flex;
-  gap: 8px;
-  padding: 0 24px 16px;
-  border-bottom: 1px solid var(--border-default);
-}
-
-/* -- KR Section -- */
-.kr-section {
-  padding: 16px 24px;
-}
-
-.kr-section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.kr-section-title {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
 
 /* -- KR Card -- */
 .kr-card {
@@ -554,12 +259,6 @@ a:hover { text-decoration: underline; }
   box-shadow: var(--shadow-card);
 }
 
-.kr-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 8px;
-}
 
 .kr-name {
   font-size: clamp(0.8rem, 1.2vw, 0.95rem);
@@ -574,53 +273,9 @@ a:hover { text-decoration: underline; }
   margin-left: 12px;
 }
 
-.kr-subtitle {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-
-.kr-description {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  line-height: 1.45;
-  margin-bottom: 10px;
-  padding: 8px 10px;
-  background: var(--bg-primary);
-  border-left: 3px solid var(--border);
-  border-radius: 0 4px 4px 0;
-}
-
-.kr-metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.kr-metric {
-  font-size: 0.8rem;
-}
-
-.kr-metric-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--primary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.kr-metric-value {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
 
 .kr-metric:last-child,
 .kr-metric:last-child .kr-metric-label,
-.kr-metric:last-child .kr-metric-value {
-  text-align: right;
-}
 
 .kr-actions {
   display: flex;
@@ -630,32 +285,7 @@ a:hover { text-decoration: underline; }
 
 /* Secondary action row — sits below the Notes section of each KR card.
    Right-aligned, subtly separated from the notes block above. */
-.kr-secondary-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  padding-top: 10px;
-  margin-top: 8px;
-  border-top: 1px solid var(--border-default);
-}
 
-/* -- Progress bars -- */
-.progress-bar {
-  width: 100%;
-  height: 10px;
-  background: var(--bg-progress-track);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.progress-bar.sm { height: 6px; }
-
-.progress-fill {
-  height: 100%;
-  border-radius: var(--radius);
-  transition: width 0.4s ease;
-  min-width: 2px;
-}
 
 /* -- Chart container -- */
 .chart-container {
@@ -664,12 +294,6 @@ a:hover { text-decoration: underline; }
   margin: 8px 0;
 }
 
-/* -- Notes -- */
-.notes-section {
-  margin-top: 8px;
-  border-top: 1px solid var(--border-default);
-  padding-top: 8px;
-}
 
 .notes-toggle {
   display: flex;
@@ -932,20 +556,6 @@ a:hover { text-decoration: underline; }
 .role-Manager { background: rgba(139,92,246,0.1); color: #8b5cf6; }
 .role-TeamMember { background: rgba(148,163,184,0.1); color: #94a3b8; }
 
-/* -- Category colors -- */
-.cat-Corporate { color: #6366f1; }
-.cat-Growth { color: #22c55e; }
-.cat-Operations { color: #f59e0b; }
-.cat-Development { color: #3b82f6; }
-.cat-Finance { color: #ef4444; }
-
-.cat-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 4px;
-}
 
 /* -- Empty state -- */
 .empty-state {
@@ -1044,75 +654,21 @@ a:hover { text-decoration: underline; }
   gap: 8px;
 }
 
-.toast {
-  padding: 12px 20px;
-  border-radius: var(--radius);
-  font-size: 0.85rem;
-  font-weight: 500;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-  animation: slideIn 0.3s ease;
-  max-width: 400px;
-}
 
 .toast.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 .toast.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-.toast.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
 
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
 
-/* -- Loading animation -- */
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  min-height: 300px;
-}
-
-.loading-dots {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.loading-dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  animation: bounce 1.4s infinite ease-in-out both;
-}
-
-.loading-dot:nth-child(1) { background: #6366f1; animation-delay: -0.32s; }
-.loading-dot:nth-child(2) { background: #8b5cf6; animation-delay: -0.16s; }
-.loading-dot:nth-child(3) { background: #a855f7; }
-.loading-dot:nth-child(4) { background: #c084fc; animation-delay: 0.16s; }
 
 @keyframes bounce {
   0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
   40% { transform: scale(1); opacity: 1; }
 }
 
-.loading-rings {
-  position: relative;
-  width: 60px;
-  height: 60px;
-  margin-bottom: 20px;
-}
-
-.loading-ring {
-  position: absolute;
-  border: 3px solid var(--primary);
-  border-radius: 50%;
-  animation: pulse-ring 1.5s infinite ease-in-out;
-}
-
-.loading-ring:nth-child(1) { inset: 0; }
-.loading-ring:nth-child(2) { inset: 12px; border-color: var(--primary-light); animation-delay: 0.3s; }
-.loading-ring:nth-child(3) { inset: 24px; background: var(--primary); animation-delay: 0.6s; }
 
 @keyframes pulse-ring {
   0% { transform: scale(0.8); opacity: 1; }
@@ -1190,7 +746,6 @@ a:hover { text-decoration: underline; }
   .modal { margin: 16px; }
 }
 
-.mobile-hamburger { display: none; }
 
 /* -- Confirm dialog -- */
 .confirm-overlay {
@@ -1314,39 +869,6 @@ a:hover { text-decoration: underline; }
    Recent Activity drawer (right side)
    ══════════════════════════════════════════════ */
 
-.activity-toggle {
-  position: fixed;
-  top: 104px;
-  right: 16px;
-  z-index: 95;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-.activity-toggle:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-card-hover);
-}
-.activity-toggle-count {
-  display: inline-block;
-  background: #ede9fe;
-  color: #6d28d9;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 999px;
-  margin-left: 2px;
-}
 
 .activity-drawer {
   position: fixed;
@@ -1481,10 +1003,6 @@ a:hover { text-decoration: underline; }
   word-break: break-word;
 }
 
-/* When drawer is open, push main content left so they don't overlap */
-.main-content.with-activity {
-  padding-right: 380px;
-}
 
 @media (max-width: 1100px) {
   .activity-drawer,
@@ -1842,8 +1360,6 @@ body:has(.shell) {
 }
 .hkr { font-weight: 580; }
 .hnum { text-align: right; font-variant-numeric: tabular-nums; font-weight: 620; }
-.hup { color: var(--ok); }
-.hdown { color: var(--bad); }
 
 /* ── Activity drawer inside the shell ────────────────── */
 .shell .activity-drawer {

@@ -159,7 +159,7 @@
             </button>
             {% endif %}
             {% if auth.can_edit_okr() %}
-            <button class="btn btn-sm" onclick='openEditOkrModal({{ okr|tojson }})'>Edit</button>
+            <button class="btn btn-sm" onclick='openEditOkrModal({{ {"id":okr.id,"title":okr.title,"description":okr.description,"owner":okr.owner,"target_date":okr.target_date,"category":okr.category}|tojson }})'>Edit</button>
             <button class="btn btn-sm" onclick='openMoveOkrModal("{{ okr.id }}", "{{ quarter }}")'>Move</button>
             {% endif %}
             {% if auth.can_delete_okr(okr.category) %}
@@ -208,7 +208,7 @@
 
             <div class="kr-actions">
               {% if auth.can_update_kr() %}
-              <button class="btn btn-primary" onclick='openUpdateKrModal({{ kr|tojson }})'>
+              <button class="btn btn-primary" onclick='openUpdateKrModal({{ {"id":kr.id,"okr_id":kr.okr_id,"name":kr.name,"current_value":kr.current_value,"current_display":kr.current_display,"target_display":kr.target_display}|tojson }})'>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 Submit Update
               </button>
@@ -220,7 +220,7 @@
               </button>
               <span class="flex-sp"></span>
               {% if auth.can_edit_kr() %}
-              <button class="btn btn-sm" onclick='openEditKrModal({{ kr|tojson }})'>Edit</button>
+              <button class="btn btn-sm" onclick='openEditKrModal({{ {"id":kr.id,"okr_id":kr.okr_id,"name":kr.name,"owner":kr.owner,"target_value":kr.target_value,"baseline_value":kr.baseline_value,"direction":kr.direction,"unit":kr.unit,"description":kr.description}|tojson }})'>Edit</button>
               {% endif %}
               {% if auth.can_delete_kr(okr.category) %}
               <button class="btn btn-sm btn-danger" onclick="deleteKr('{{ kr.id }}', '{{ kr.okr_id }}', '{{ quarter }}', '{{ okr.category }}')">Delete</button>
