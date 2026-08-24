@@ -213,9 +213,17 @@
                 Submit Update
               </button>
               {% endif %}
-              <button class="notes-toggle" onclick="toggleNotes(this)">
+              <button class="notes-toggle" data-notes-target="notes_KR_{{ kr.id }}" onclick="toggleNotes(this)">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Notes ({{ kr.notes|length }})
+                <span class="notes-toggle-label">
+                  {%- if kr.notes|length > 1 -%}
+                    Notes ({{ kr.notes|length }})
+                  {%- elif kr.notes|length == 1 -%}
+                    Add a note
+                  {%- else -%}
+                    Add a note
+                  {%- endif -%}
+                </span>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="toggle-arrow"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               <span class="flex-sp"></span>
@@ -227,14 +235,25 @@
               {% endif %}
             </div>
 
-            <div class="notes-list" style="display:none;">
+            {# The most recent note stays visible; everything older is behind the toggle. #}
+            {% if kr.notes %}
+            <div class="note-latest">
+              <div class="note-meta">
+                <span class="note-author">{{ kr.notes[0].author }}</span>
+                <span class="note-timestamp">{{ kr.notes[0].timestamp }}</span>
+              </div>
+              <div class="note-text">{{ kr.notes[0].text }}</div>
+            </div>
+            {% endif %}
+
+            <div class="notes-list" id="notes_KR_{{ kr.id }}" style="display:none;">
               {% if auth.can_add_note() %}
               <div class="note-form">
                 <textarea class="note-input" placeholder="Add a note..." rows="1" id="noteInput_KR_{{ kr.id }}"></textarea>
                 <button class="btn btn-primary btn-sm" onclick="addNote('KR', '{{ kr.id }}', 'noteInput_KR_{{ kr.id }}')">Add</button>
               </div>
               {% endif %}
-              {% for note in kr.notes %}
+              {% for note in kr.notes[1:] %}
               <div class="note-card">
                 <div class="note-meta">
                   <span class="note-author">{{ note.author }}</span>
@@ -253,6 +272,7 @@
 
         <!-- ── Panel 1: Objective notes ───────────────── -->
         <div class="opanel" data-panel="1" data-okr-panel="{{ okr_idx }}">
+          <div class="notes-list notes-list-open">
           {% if auth.can_add_note() %}
           <div class="note-form">
             <textarea class="note-input" placeholder="Add a note to this objective..." rows="2" id="noteInput_OKR_{{ okr.id }}"></textarea>
@@ -271,6 +291,7 @@
           {% if okr.notes|length == 0 %}
           <div class="note-empty">No objective-level notes yet. Key result notes live on each card under the Key Results tab.</div>
           {% endif %}
+          </div>
         </div>
 
         <!-- ── Panel 2: History ───────────────────────── -->

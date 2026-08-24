@@ -453,14 +453,35 @@ window.addEventListener('resize', function() {
 // ---------- Notes Toggle ----------
 
 function toggleNotes(btn) {
-  const notesList = btn.nextElementSibling;
+  // Target by id, not by DOM position: this used to walk to nextElementSibling,
+  // which silently stopped working when the button moved inside .kr-actions and
+  // the spacer became its next sibling.
+  const targetId = btn.dataset.notesTarget;
+  const notesList = targetId
+    ? document.getElementById(targetId)
+    : (btn.closest('.notes-section') || btn.parentElement)?.querySelector('.notes-list');
+  if (!notesList) return;
+
+  const open = notesList.style.display === 'none' || !notesList.style.display;
+  notesList.style.display = open ? 'block' : 'none';
+
   const arrow = btn.querySelector('.toggle-arrow');
-  if (notesList.style.display === 'none') {
-    notesList.style.display = 'block';
-    if (arrow) arrow.style.transform = 'rotate(180deg)';
-  } else {
-    notesList.style.display = 'none';
-    if (arrow) arrow.style.transform = 'rotate(0deg)';
+  if (arrow) arrow.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+
+  // "Notes (3)" when collapsed, "Hide notes" when open — the count is only
+  // useful while the notes are hidden.
+  const label = btn.querySelector('.notes-toggle-label');
+  if (label) {
+    if (open) {
+      label.dataset.collapsedLabel = label.textContent.trim();
+      label.textContent = 'Hide notes';
+    } else if (label.dataset.collapsedLabel) {
+      label.textContent = label.dataset.collapsedLabel;
+    }
+  }
+  if (open) {
+    const input = notesList.querySelector('.note-input');
+    if (input) input.focus();
   }
 }
 
@@ -722,18 +743,71 @@ function addNote(parentType, parentId, inputId) {
     parent_id: parentId,
     text: text,
   }, 'Adding note...').then(r => {
-    if (r.ok) {
-      const notesList = input.closest('.notes-list');
-      const noteCard = document.createElement('div');
-      noteCard.className = 'note-card';
-      noteCard.innerHTML = '<div class="note-meta"><span class="note-author">' + r.author +
-        '</span><span class="note-timestamp">' + r.timestamp + '</span></div>' +
-        '<div class="note-text">' + esc(text) + '</div>';
-      notesList.insertBefore(noteCard, input.closest('.note-form'));
-      input.value = '';
-      showToast('Note added', 'success');
+    if (!r.ok) return;
+    const form = input.closest('.note-form');
+    // KR cards wrap notes in .notes-list; the objective Notes tab is the panel
+    // itself. Fall back to the form's parent so either shape works.
+    const notesList = input.closest('.notes-list') || input.closest('.opanel')
+                      || (form && form.parentElement);
+    if (!notesList) { showToast('Note saved — refresh to see it', 'success'); input.value = ''; return; }
+    const body = '<div class="note-meta"><span class="note-author">' + esc(r.author) +
+      '</span><span class="note-timestamp">' + esc(r.timestamp) + '</span></div>' +
+      '<div class="note-text">' + esc(text) + '</div>';
+
+    // KR cards pin the most recent note above the toggle. A new note takes that
+    // slot and the one it displaces moves to the top of the collapsed list.
+    const card = notesList.closest('.kr-card');
+    const pinned = card ? card.querySelector('.note-latest') : null;
+    if (card) {
+      if (pinned) {
+        const demoted = document.createElement('div');
+        demoted.className = 'note-card';
+        demoted.innerHTML = pinned.innerHTML;
+        notesList.insertBefore(demoted, form ? form.nextSibling : notesList.firstChild);
+        pinned.innerHTML = body;
+      } else {
+        const el = document.createElement('div');
+        el.className = 'note-latest';
+        el.innerHTML = body;
+        notesList.parentNode.insertBefore(el, notesList);
+      }
+      notesList.querySelector('.note-empty')?.remove();
+      bumpNoteCount(card, notesList);
+    } else {
+      // Objective notes render as a plain newest-first list under the form.
+      const el = document.createElement('div');
+      el.className = 'note-card';
+      el.innerHTML = body;
+      notesList.insertBefore(el, form ? form.nextSibling : notesList.firstChild);
+      notesList.querySelector('.note-empty')?.remove();
+      bumpOkrNoteCount(notesList);
     }
+    input.value = '';
+    showToast('Note added', 'success');
   });
+}
+
+// Keep the KR toggle's collapsed label ("Notes (3)") honest after an add.
+function bumpNoteCount(card, notesList) {
+  const btn = card.querySelector('.notes-toggle');
+  const label = btn && btn.querySelector('.notes-toggle-label');
+  if (!label) return;
+  const total = notesList.querySelectorAll('.note-card').length +
+    (card.querySelector('.note-latest') ? 1 : 0);
+  const collapsedText = total > 1 ? 'Notes (' + total + ')' : 'Add a note';
+  // While expanded the label reads "Hide notes"; update what it reverts to.
+  if (label.dataset.collapsedLabel) label.dataset.collapsedLabel = collapsedText;
+  else label.textContent = collapsedText;
+}
+
+// Objective notes live in a tab whose header shows the count.
+function bumpOkrNoteCount(notesList) {
+  const panel = notesList.closest('.opanel');
+  const idx = panel && panel.dataset.panel;
+  if (!panel || idx === undefined) return;
+  const tab = panel.closest('.okr-card')?.querySelectorAll('.otab')[Number(idx)];
+  const badge = tab && tab.querySelector('.otab-count');
+  if (badge) badge.textContent = String(notesList.querySelectorAll('.note-card').length);
 }
 
 

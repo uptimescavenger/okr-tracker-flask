@@ -295,8 +295,11 @@ a:hover { text-decoration: underline; }
 }
 
 
+/* The toggle now sits inline in the KR action row, so it must not stretch.
+   (It previously had width:100% from when it owned its own section — that was
+   forcing the whole action row to wrap onto four lines.) */
 .notes-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 0;
@@ -306,8 +309,10 @@ a:hover { text-decoration: underline; }
   color: var(--primary);
   background: none;
   border: none;
-  width: 100%;
+  width: auto;
+  flex: none;
   text-align: left;
+  white-space: nowrap;
 }
 
 .notes-list { margin-top: 8px; }
@@ -1319,6 +1324,7 @@ body:has(.shell) {
 .shell .btn-danger { color: var(--bad); border-color: #f3c9c7; background: var(--surface-c); }
 .shell .btn-danger:hover { background: var(--bad-soft); }
 .notes-toggle {
+  flex: none; width: auto; white-space: nowrap;
   background: none; border: none; font: inherit; font-size: 12.5px; font-weight: 630;
   color: var(--ink-2); cursor: pointer; display: inline-flex; align-items: center;
   gap: 6px; padding: 0; white-space: nowrap;
@@ -1449,3 +1455,24 @@ body:has(.page-shell) { background: var(--page); overflow: hidden; }
 .kr-card .chart-container { max-width: 100%; overflow: hidden; margin-top: 12px; }
 .kr-card .chart-container .js-plotly-plot,
 .kr-card .chart-container .plot-container { max-width: 100%; }
+
+/* Most recent note, always visible on a KR card. The rest sit behind the
+   Notes toggle so cards stay short as threads grow. */
+.note-latest {
+  margin-top: 12px;
+  padding: 10px 13px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brand-line);
+  border-radius: var(--rc);
+}
+.note-latest .note-meta {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 12px; margin-bottom: 3px; flex-wrap: wrap;
+}
+.note-latest .note-author { font-weight: 670; color: var(--ink); }
+.note-latest .note-timestamp { color: var(--ink-3); }
+.note-latest .note-text { font-size: 13.5px; color: var(--ink-2); }
+
+/* The objective Notes tab is already an expanded view — no top divider. */
+.shell .notes-list-open { margin-top: 0; padding-top: 0; border-top: none; }
