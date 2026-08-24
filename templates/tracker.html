@@ -238,11 +238,16 @@
             {# The most recent note stays visible; everything older is behind the toggle. #}
             {% if kr.notes %}
             <div class="note-latest">
-              <div class="note-meta">
-                <span class="note-author">{{ kr.notes[0].author }}</span>
-                <span class="note-timestamp">{{ kr.notes[0].timestamp }}</span>
+              <div class="note-latest-label">Latest note</div>
+              {# The label sits outside .note-latest-body so addNote() can swap
+                 the note content without wiping it. #}
+              <div class="note-latest-body">
+                <div class="note-meta">
+                  <span class="note-author">{{ kr.notes[0].author }}</span>
+                  <span class="note-timestamp">{{ kr.notes[0].timestamp }}</span>
+                </div>
+                <div class="note-text">{{ kr.notes[0].text }}</div>
               </div>
-              <div class="note-text">{{ kr.notes[0].text }}</div>
             </div>
             {% endif %}
 

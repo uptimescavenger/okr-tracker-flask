@@ -760,15 +760,18 @@ function addNote(parentType, parentId, inputId) {
     const pinned = card ? card.querySelector('.note-latest') : null;
     if (card) {
       if (pinned) {
+        // Swap only the body so the "Latest note" label survives.
+        const slot = pinned.querySelector('.note-latest-body') || pinned;
         const demoted = document.createElement('div');
         demoted.className = 'note-card';
-        demoted.innerHTML = pinned.innerHTML;
+        demoted.innerHTML = slot.innerHTML;
         notesList.insertBefore(demoted, form ? form.nextSibling : notesList.firstChild);
-        pinned.innerHTML = body;
+        slot.innerHTML = body;
       } else {
         const el = document.createElement('div');
         el.className = 'note-latest';
-        el.innerHTML = body;
+        el.innerHTML = '<div class="note-latest-label">Latest note</div>' +
+                       '<div class="note-latest-body">' + body + '</div>';
         notesList.parentNode.insertBefore(el, notesList);
       }
       notesList.querySelector('.note-empty')?.remove();
