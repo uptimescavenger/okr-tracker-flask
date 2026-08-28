@@ -16,7 +16,7 @@ imports, components, or patterns. All UI is server-rendered Jinja2 HTML with van
 | Frontend | **Jinja2** templates + vanilla JS + plain CSS |
 | Data store | **Google Sheets** (via `gspread`) |
 | Auth | Custom session-based login (`auth_service.py`) |
-| Email | Gmail API with domain-wide delegation (`email_service.py`) — not SMTP |
+| Email | Gmail API with domain-wide delegation (`email_service.py`) — not SMTP.<br>`SENDER_EMAIL` is the mailbox; `SENDER_NAME` is the display name recipients see. |
 | Deployment | **Render** (Web Service, gunicorn) |
 | Config | Environment variables (set in Render dashboard) |
 

@@ -7,6 +7,7 @@ import base64
 from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr
 
 import pandas as pd
 from google.oauth2.service_account import Credentials
@@ -340,6 +341,19 @@ def render_update_request_html(user_name, stale_krs, quarter):
 
 # -- Send Functions --
 
+def from_header() -> str:
+    """"OKR Tracker <okr@example.com>", or the bare address if no name is set.
+
+    formataddr handles the fiddly parts: it quotes names containing commas or
+    periods, and RFC 2047-encodes anything non-ASCII, either of which would
+    produce a malformed header if the string were just concatenated.
+    """
+    name = (config.SENDER_NAME or "").strip()
+    if not name:
+        return config.SENDER_EMAIL
+    return formataddr((name, config.SENDER_EMAIL))
+
+
 def _send_email(to, subject, html_body, plain_text=""):
     try:
         service = _get_gmail_service()
@@ -349,7 +363,7 @@ def _send_email(to, subject, html_body, plain_text=""):
         return False, f"Gmail auth failed: {e}"
 
     msg = MIMEMultipart("alternative")
-    msg["From"] = config.SENDER_EMAIL
+    msg["From"] = from_header()
     msg["To"] = to
     msg["Subject"] = subject
     if not plain_text:
@@ -385,7 +399,7 @@ def send_test_email(recipient):
                 This confirms that the OKR Tracker can send emails via Gmail API.
             </p>
             <p style="font-size:12px; color:#94a3b8;">
-                Sent from: {config.SENDER_EMAIL}<br>
+                Sent from: {from_header()}<br>
                 Sent at: {datetime.now().strftime("%m/%d/%Y %H:%M")}
             </p>
         </div>

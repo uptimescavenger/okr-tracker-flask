@@ -16,3 +16,4 @@ service_account.json
 
 # Local dev helper (stubbed Sheets) — never deployed
 devserver.py
+selfcheck.py

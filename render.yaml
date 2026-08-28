@@ -25,5 +25,9 @@ services:
         generateValue: true
       - key: SENDER_EMAIL
         sync: false
+      # Display name recipients see, e.g. "UptimeHealth OKRs".
+      # Optional — falls back to "OKR Tracker".
+      - key: SENDER_NAME
+        sync: false
       - key: PYTHON_VERSION
         value: 3.11.6

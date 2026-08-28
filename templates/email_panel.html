@@ -8,7 +8,13 @@
 <div class="page-shell">
   <main class="page-main">
     <h2 style="color:var(--text-primary);margin-bottom:4px;">Email Reports</h2>
-    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px;">Send progress reports, update requests, and weekly digests via Gmail API.</p>
+    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:14px;">Send progress reports, update requests, and weekly digests via Gmail API.</p>
+
+    <div class="sender-note">
+      <span class="sender-note-label">Sending as</span>
+      <span class="sender-note-value">{{ sender_from or 'not configured' }}</span>
+      <span class="sender-note-hint">Set <code>SENDER_NAME</code> / <code>SENDER_EMAIL</code> in the Render environment to change this.</span>
+    </div>
 
     <div class="email-tabs">
       <button class="email-tab active" onclick="switchEmailTab(this, 'testPanel')">Test Email</button>

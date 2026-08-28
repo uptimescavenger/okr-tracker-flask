@@ -143,6 +143,10 @@ ROLES = ["Admin", "Manager", "Team Member"]
 
 # ---------- Email ----------
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "")
+# Display name on outgoing mail — recipients see this instead of the raw
+# address. The mailbox itself is still SENDER_EMAIL; this only changes the
+# label, so it needs no extra Workspace permission.
+SENDER_NAME = os.environ.get("SENDER_NAME", "OKR Tracker")
 
 # ---------- UI ----------
 PAGE_TITLE = "OKR Tracker"

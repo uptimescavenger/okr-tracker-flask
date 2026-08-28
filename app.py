@@ -627,7 +627,10 @@ def email_panel():
         flash("Access denied.", "error")
         return redirect(url_for("tracker"))
     quarter = request.args.get("quarter", config.current_quarter())
-    return render_template("email_panel.html", quarter=quarter)
+    # Show the exact From header recipients will see, so a misconfigured
+    # SENDER_NAME/SENDER_EMAIL is visible before anything is sent.
+    sender_from = email_service.from_header() if config.SENDER_EMAIL else ""
+    return render_template("email_panel.html", quarter=quarter, sender_from=sender_from)
 
 
 @app.route("/api/email/test", methods=["POST"])
